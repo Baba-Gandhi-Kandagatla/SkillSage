@@ -1,0 +1,406 @@
+openapi: 3.0.0
+info:
+  title: SkillSage API
+  description: API documentation for SkillSage.
+  version: 1.0.0
+servers:
+  - url: http://localhost:5000/api/v1
+paths:
+  /student/profile:
+    get:
+      summary: Get student profile
+      responses:
+        '200':
+          description: Successfully retrieved profile
+        '404':
+          description: Student not found
+  /student/upload_resume:
+    post:
+      summary: Upload a resume
+      responses:
+        '200':
+          description: Successfully uploaded resume
+        '400':
+          description: No file uploaded
+        '500':
+          description: Server error
+  /admin/add_student:
+    post:
+      summary: Add a new student to the system
+      responses:
+        '201':
+          description: Student added
+        '409':
+          description: Student already exists
+        '500':
+          description: Server error
+  /admin/update_student/{rollnumber}:
+    put:
+      summary: Update student details
+      parameters:
+        - in: path
+          name: rollnumber
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Student updated successfully
+        '404':
+          description: Student not found
+        '500':
+          description: Internal server error
+  /admin/delete_student/{rollnumber}:
+    delete:
+      summary: Delete a student
+      parameters:
+        - in: path
+          name: rollnumber
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Student deleted successfully
+        '404':
+          description: Student not found
+        '500':
+          description: Internal server error
+  /admin/create_interview:
+    post:
+      summary: Create a new interview
+      responses:
+        '201':
+          description: Interview created successfully
+        '400':
+          description: Invalid input
+        '500':
+          description: Internal server error
+  /admin/get_interviews:
+    get:
+      summary: Get all interviews
+      responses:
+        '200':
+          description: Successfully retrieved interviews
+        '500':
+          description: Internal server error
+  /admin/update_interview_status/{id}:
+    put:
+      summary: Update interview status
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Interview status updated successfully
+        '404':
+          description: Interview not found
+        '500':
+          description: Internal server error
+  /admin/start_interview/{id}:
+    put:
+      summary: Start an interview
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Interview started successfully
+        '404':
+          description: Interview not found
+        '500':
+          description: Internal server error
+  /admin/pause_interview/{id}:
+    put:
+      summary: Pause an interview
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Interview paused successfully
+        '404':
+          description: Interview not found
+        '500':
+          description: Internal server error
+  /admin/delete_interview/{id}:
+    delete:
+      summary: Delete an interview
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Interview deleted successfully
+        '404':
+          description: Interview not found
+        '500':
+          description: Internal server error
+  /admin/get_attendence/{id}:
+    get:
+      summary: Get interview attendance
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successfully retrieved attendance
+        '404':
+          description: Interview not found
+        '500':
+          description: Internal server error
+  /admin/get_student_profile/{rollnumber}:
+    get:
+      summary: Get student profile
+      parameters:
+        - in: path
+          name: rollnumber
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successfully retrieved student profile
+        '404':
+          description: Student not found
+        '500':
+          description: Internal server error
+  /admin/reset_student_password/{rollnumber}:
+    post:
+      summary: Reset student password
+      parameters:
+        - in: path
+          name: rollnumber
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Student password reset successfully
+        '404':
+          description: Student not found
+        '500':
+          description: Internal server error
+  /admin/get_all_students:
+    get:
+      summary: Get all students
+      responses:
+        '200':
+          description: Successfully retrieved students
+        '500':
+          description: Internal server error
+  /admin/add_department:
+    post:
+      summary: Add a new department
+      responses:
+        '201':
+          description: Department added successfully
+        '409':
+          description: Department already exists
+        '500':
+          description: Internal server error
+  /admin/delete_department/{department_name}:
+    delete:
+      summary: Delete a department
+      parameters:
+        - in: path
+          name: department_name
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Department deleted successfully
+        '404':
+          description: Department not found
+        '500':
+          description: Internal server error
+  /admin/get_all_departments:
+    get:
+      summary: Get all departments
+      responses:
+        '200':
+          description: Successfully retrieved departments
+        '500':
+          description: Internal server error
+  /admin/change_password:
+    post:
+      summary: Change admin password
+      responses:
+        '200':
+          description: Password changed successfully
+        '401':
+          description: Invalid old password
+        '500':
+          description: Internal server error
+  /admin/getDefaultPassword:
+    get:
+      summary: Get default password
+      responses:
+        '200':
+          description: Successfully retrieved default password
+        '500':
+          description: Internal server error
+  /admin/setDefaultPassword:
+    post:
+      summary: Set default password
+      responses:
+        '200':
+          description: Default password set successfully
+        '500':
+          description: Internal server error
+  /admin/setpreference:
+    put:
+      summary: Set admin preferences
+      responses:
+        '200':
+          description: Preferences updated successfully
+        '500':
+          description: Internal server error
+  /admin/getpreference:
+    get:
+      summary: Get admin preferences
+      responses:
+        '200':
+          description: Successfully retrieved preferences
+        '500':
+          description: Internal server error
+  /interview/start_interview/{interview_id}:
+    get:
+      summary: Start an interview
+      parameters:
+        - in: path
+          name: interview_id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Interview started successfully
+        '404':
+          description: Interview not found
+        '500':
+          description: Internal server error
+  /interview/next/{interview_id}:
+    post:
+      summary: Get next interview question
+      parameters:
+        - in: path
+          name: interview_id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successfully retrieved next question
+        '404':
+          description: Interview not found
+        '500':
+          description: Internal server error
+  /interview/submit/{interview_id}:
+    get:
+      summary: Submit interview
+      parameters:
+        - in: path
+          name: interview_id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Interview submitted successfully
+        '404':
+          description: Interview not found
+        '500':
+          description: Internal server error
+  /interview/reframe/{interview_id}:
+    get:
+      summary: Reframe last interview question
+      parameters:
+        - in: path
+          name: interview_id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successfully reframed question
+        '404':
+          description: Interview not found
+        '500':
+          description: Internal server error
+  /god/addAdmin:
+    post:
+      summary: Add a new admin
+      responses:
+        '201':
+          description: Admin added successfully
+        '409':
+          description: Roll number already exists
+        '500':
+          description: Internal server error
+  /god/addCollege:
+    post:
+      summary: Add a new college
+      responses:
+        '201':
+          description: College added successfully
+        '409':
+          description: College already exists
+        '500':
+          description: Internal server error
+  /god/getAllColleges:
+    get:
+      summary: Get all colleges
+      responses:
+        '200':
+          description: Successfully retrieved colleges
+        '500':
+          description: Internal server error
+  /god/deleteCollege/{id}:
+    delete:
+      summary: Delete a college
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: College deleted successfully
+        '404':
+          description: College not found
+        '500':
+          description: Internal server error
+  /god/getCollegeAdmins/{id}:
+    get:
+      summary: Get admins of a college
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successfully retrieved admins
+        '404':
+          description: College not found
+        '500':
+          description: Internal server error
