@@ -1,0 +1,192 @@
+
+// Mock data for interviews
+const mockInterviews = [
+  {
+    id: 1,
+    name: "Frontend Developer Interview",
+    subject: "JavaScript",
+    department: "Computer Science",
+    topic: "React",
+    status: "Scheduled",
+  },
+  {
+    id: 2,
+    name: "Backend Developer Interview",
+    subject: "Python",
+    department: "Information Technology",
+    topic: "Django",
+    status: "In Progress",
+  },
+  {
+    id: 3,
+    name: "Full Stack Developer Interview",
+    subject: "Java",
+    department: "Software Engineering",
+    topic: "Spring",
+    status: "Completed",
+  },
+  // Add more mock interviews here...
+];
+
+
+/////////////////////////////////////////////////////////////////////////////////////
+
+
+
+function CreateInterviewForm({ onSubmit }: CreateInterviewFormProps) {
+  const [name, setName] = useState("");
+  const [selectedSubjects, setSelectedSubjects] = useState<string[]>([]);
+  const [department, setDepartment] = useState("");
+  const [topics, setTopics] = useState<string[]>([]);
+  const [currentTopic, setCurrentTopic] = useState("");
+
+  const handleSubmit = (e: { preventDefault: () => void }) => {
+    e.preventDefault();
+    if (
+      name &&
+      selectedSubjects.length > 0 &&
+      department &&
+      topics.length > 0
+    ) {
+      onSubmit({
+        name,
+        subject: selectedSubjects.join(", "),
+        department,
+        topic: topics.join(", "),
+      });
+
+      setName("");
+      setSelectedSubjects([]);
+      setDepartment("");
+      setTopics([]);
+    }
+  };
+
+  const addTopic = () => {
+    if (currentTopic.trim() && !topics.includes(currentTopic.trim())) {
+      setTopics([...topics, currentTopic.trim()]);
+      setCurrentTopic("");
+    }
+  };
+
+  const handleTopicKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      addTopic();
+    }
+  };
+
+  const removeTopic = (topicToRemove: string) => {
+    setTopics(topics.filter((topic) => topic !== topicToRemove));
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <div>
+        <Label htmlFor="name">Interview Name</Label>
+        <Input
+          id="name"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          required
+        />
+      </div>
+      <div>
+        <Label>Subjects</Label>
+        <div className="grid grid-cols-2 gap-2">
+          {subjects.map((subject) => (
+            <div key={subject} className="flex items-center space-x-2">
+              <Checkbox
+                id={subject}
+                checked={selectedSubjects.includes(subject)}
+                onCheckedChange={(checked) => {
+                  setSelectedSubjects(
+                    checked
+                      ? [...selectedSubjects, subject]
+                      : selectedSubjects.filter((s) => s !== subject)
+                  );
+                }}
+                required={selectedSubjects.length === 0}
+              />
+              <label htmlFor={subject}>{subject}</label>
+            </div>
+          ))}
+        </div>
+      </div>
+      <div>
+        <Label htmlFor="department">Department</Label>
+        <Select onValueChange={setDepartment} required>
+          <SelectTrigger id="department">
+            <SelectValue placeholder="Select Department" />
+          </SelectTrigger>
+          <SelectContent>
+            {allDepartments.map((department) => (
+              <SelectItem key={department} value={department}>
+                {department}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor="topic">Topics</Label>
+        <div className="flex gap-2">
+          <Input
+            id="topic"
+            value={currentTopic}
+            onChange={(e) => setCurrentTopic(e.target.value)}
+            onKeyPress={handleTopicKeyPress}
+            placeholder="Enter a topic"
+          />
+          <Button
+            type="button"
+            onClick={addTopic}
+            disabled={!currentTopic.trim()}
+          >
+            Add
+          </Button>
+        </div>
+        <div className="flex flex-wrap gap-2 mt-2">
+          {topics.map((topic) => (
+            <div
+              key={topic}
+              className="bg-gray-100 px-3 py-1 rounded-lg flex items-center gap-2"
+            >
+              <span>{topic}</span>
+              <button
+                type="button"
+                onClick={() => removeTopic(topic)}
+                className="text-gray-500 hover:text-gray-700"
+              >
+                ×
+              </button>
+            </div>
+          ))}
+        </div>
+      </div>
+      <Button
+        type="submit"
+        disabled={
+          !name ||
+          selectedSubjects.length === 0 ||
+          !department ||
+          topics.length === 0
+        }
+      >
+        Create Interview
+      </Button>
+    </form>
+  );
+}
+
+
+interface CreateInterviewFormProps {
+  onSubmit: (newInterview: {
+    name: string;
+    subject: string;
+    department: string;
+    topic: string;
+  }) => void;
+}
+
+const subjects = ["JavaScript", "Python", "Java", "C++", "Ruby"];

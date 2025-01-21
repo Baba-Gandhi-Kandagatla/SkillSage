@@ -1,0 +1,1287 @@
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Slider } from "@/components/ui/slider";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { AnimatePresence, motion } from "framer-motion";
+import {
+  Download,
+  Eye,
+  EyeOff,
+  Loader2,
+  Plus,
+  Save,
+  Trash2,
+} from "lucide-react";
+import { useEffect, useState, useCallback } from "react";
+import {
+  getAllDepartments,
+  addDepartment,
+  getDefaultPassword,
+  deleteDepartment,
+  setDefaultPasswordStudent,
+} from "../../Communicators/apiCommunications";
+import toast from "react-hot-toast";
+import { InterviewSettings } from "./AdminPanel/InterviewSettings";
+
+const fadeIn = {
+  hidden: { opacity: 0 },
+  visible: { opacity: 1, transition: { duration: 0.5 } },
+};
+
+const buttonVariants = {
+  hover: { scale: 1.05, transition: { duration: 0.2 } },
+  tap: { scale: 0.95, transition: { duration: 0.2 } },
+};
+
+const bounceVariants = {
+  hover: { y: -5, transition: { yoyo: Infinity, duration: 0.4 } },
+};
+
+const AnimatedButton = motion(Button);
+
+// Modify LoadingModal to accept a message prop
+const LoadingModal = ({
+  isOpen,
+  message,
+}: {
+  isOpen: boolean;
+  message?: string;
+}) => (
+  <AnimatePresence>
+    {isOpen && (
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="fixed inset-0 z-50 flex items-center justify-center"
+      >
+        <div className="absolute inset-0 bg-black opacity-50 backdrop-blur-sm"></div>
+        <motion.div
+          initial={{ scale: 0.8, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          exit={{ scale: 0.8, opacity: 0 }}
+          className="bg-white p-6 rounded-lg shadow-xl z-10 flex flex-col items-center"
+        >
+          <Loader2 className="h-8 w-8 animate-spin text-gray-800 mb-4" />
+          <p className="text-gray-800 font-semibold">
+            {message || "Saving changes..."}
+          </p>
+        </motion.div>
+      </motion.div>
+    )}
+  </AnimatePresence>
+);
+
+export default function AdminPanel() {
+  const [defaultPassword, setDefaultPassword] = useState("");
+  const [newDefaultPassword, setNewDefaultPassword] = useState("");
+  const [isDefaultPasswordVisible, setIsDefaultPasswordVisible] =
+    useState(false);
+
+  const [adminPassword, setAdminPassword] = useState("");
+  const [adminPasswordConfirm, setAdminPasswordConfirm] = useState("");
+  const [isAdminPasswordMatch, setIsAdminPasswordMatch] = useState(false);
+
+  const [departments, setDepartments] = useState([
+    "Computer Science",
+    "Electrical Engineering",
+  ]);
+  const [newDepartment, setNewDepartment] = useState("");
+  const [selectedDepartment, setSelectedDepartment] = useState("");
+  const [totalQuestions, setTotalQuestions] = useState(10);
+  const [codingQuestionPercentage, setCodingQuestionPercentage] = useState(50);
+  const [isLoading, setIsLoading] = useState(false);
+  const [interviewDuration, setInterviewDuration] = useState(60);
+  const [maxInterviews, setMaxInterviews] = useState(3);
+  const [allowSelfScheduling, setAllowSelfScheduling] = useState(false);
+  const [matchingAlgorithm, setMatchingAlgorithm] = useState("random");
+
+  const [initialState, setInitialState] = useState({
+    defaultPassword: "initialPassword123", // Set initial default password here
+    departments: ["Computer Science", "Electrical Engineering"],
+    adminPassword: "",
+    totalQuestions: 10,
+    codingQuestionPercentage: 50,
+    interviewDuration: 60,
+    maxInterviews: 3,
+    allowSelfScheduling: false,
+    matchingAlgorithm: "random",
+  });
+
+  const [hasChanges, setHasChanges] = useState({
+    interviewSettings: false,
+    userManagement: false,
+    departmentsSections: false,
+  });
+
+  const [rollNumber, setRollNumber] = useState("");
+  const [isResetting, setIsResetting] = useState(false);
+  const [isWarningModalOpen, setIsWarningModalOpen] = useState(false);
+
+  // Add new state variables at the beginning of the component
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [departmentToDelete, setDepartmentToDelete] = useState("");
+  const [deleteConfirmationText, setDeleteConfirmationText] = useState("");
+
+  // Initialize activeTab with value from localStorage or default
+  const [activeTab, setActiveTab] = useState(
+    () => localStorage.getItem("adminPanelActiveTab") || "interview-settings"
+  );
+
+  // Update localStorage whenever activeTab changes
+  useEffect(() => {
+    localStorage.setItem("adminPanelActiveTab", activeTab);
+
+    if (activeTab === "departments-sections") {
+      const fetchDepartments = async () => {
+        try {
+          const deptData = await getAllDepartments();
+          setDepartments(deptData.map((dept) => dept.name));
+          setInitialState((prevState) => ({
+            ...prevState,
+            departments: deptData.map((dept) => dept.name),
+          }));
+        } catch (error) {
+          // Handle error
+        }
+      };
+
+      fetchDepartments();
+    }
+  }, [activeTab]);
+
+  useEffect(() => {
+    setHasChanges((prevState) => ({
+      ...prevState,
+      interviewSettings:
+        totalQuestions !== initialState.totalQuestions ||
+        codingQuestionPercentage !== initialState.codingQuestionPercentage ||
+        interviewDuration !== initialState.interviewDuration ||
+        maxInterviews !== initialState.maxInterviews ||
+        allowSelfScheduling !== initialState.allowSelfScheduling ||
+        matchingAlgorithm !== initialState.matchingAlgorithm,
+    }));
+  }, [
+    totalQuestions,
+    codingQuestionPercentage,
+    interviewDuration,
+    maxInterviews,
+    allowSelfScheduling,
+    matchingAlgorithm,
+    initialState,
+  ]);
+
+  useEffect(() => {
+    setHasChanges((prevState) => ({
+      ...prevState,
+      userManagement:
+        defaultPassword !== initialState.defaultPassword ||
+        adminPassword !== initialState.adminPassword,
+    }));
+  }, [defaultPassword, adminPassword, initialState]);
+
+  useEffect(() => {
+    setHasChanges((prevState) => ({
+      ...prevState,
+      departmentsSections:
+        JSON.stringify(departments) !==
+        JSON.stringify(initialState.departments),
+    }));
+  }, [departments, initialState]);
+
+  useEffect(() => {
+    setIsAdminPasswordMatch(
+      adminPassword !== "" && adminPassword === adminPasswordConfirm
+    );
+  }, [adminPassword, adminPasswordConfirm]);
+
+  // Set defaultPassword to initialState.defaultPassword when the component mounts
+  useEffect(() => {
+    setDefaultPassword(initialState.defaultPassword);
+  }, [initialState.defaultPassword]);
+
+  useEffect(() => {
+    const fetchDefaultPassword = async () => {
+      try {
+        const defaultPwd = await getDefaultPassword();
+        console.log(defaultPwd);
+        setDefaultPassword(defaultPwd);
+        setInitialState((prevState) => ({
+          ...prevState,
+          defaultPassword: defaultPwd,
+        }));
+      } catch (error) {
+        // Handle error
+      }
+    };
+
+    fetchDefaultPassword();
+  }, []);
+
+  const handleSave = useCallback(
+    (
+      section: "interviewSettings" | "userManagement" | "departmentsSections"
+    ) => {
+      setIsLoading(true);
+      setTimeout(() => {
+        setIsLoading(false);
+        if (section === "userManagement") {
+          setInitialState((prevState) => ({
+            ...prevState, 
+            defaultPassword: newDefaultPassword,
+            adminPassword: adminPassword,
+          }));
+          setDefaultPassword(newDefaultPassword);
+          setNewDefaultPassword("");
+        } else {
+          setInitialState((prevState) => ({
+            ...prevState,
+            defaultPassword,
+            departments,
+            totalQuestions,
+            codingQuestionPercentage,
+            interviewDuration,
+            maxInterviews,
+            allowSelfScheduling,
+            matchingAlgorithm,
+          }));
+        }
+        setHasChanges((prevState) => ({
+          ...prevState,
+          [section]: false,
+        }));
+        // Clear admin password fields after saving
+        if (section === "userManagement") {
+          setAdminPassword("");
+          setAdminPasswordConfirm("");
+          setIsAdminPasswordMatch(false);
+        }
+      }, 2000);
+    },
+    [
+      newDefaultPassword,
+      adminPassword,
+      defaultPassword,
+      departments,
+      totalQuestions,
+      codingQuestionPercentage,
+      interviewDuration,
+      maxInterviews,
+      allowSelfScheduling,
+      matchingAlgorithm,
+    ]
+  );
+
+  const handleAddDepartment = useCallback(async () => {
+    if (newDepartment && !departments.includes(newDepartment)) {
+      try {
+        await addDepartment(newDepartment);
+        setDepartments([...departments, newDepartment]);
+        setNewDepartment("");
+      } catch (error) {
+        // Handle error, e.g., show a notification
+        console.error("Failed to add department:", error);
+      }
+    }
+  }, [newDepartment, departments]);
+
+  // Update handleRemoveDepartment to open the modal instead of using window.confirm
+  const handleRemoveDepartment = useCallback((dept: string) => {
+    setIsDeleteModalOpen(true);
+    setDepartmentToDelete(dept);
+  }, []);
+
+  // Add a function to confirm deletion
+  const confirmDeleteDepartment = async () => {
+    setIsLoading(true);
+    setDeleteConfirmationText("");
+    try {
+      await deleteDepartment(departmentToDelete);
+      setDepartments((prevDepartments) =>
+        prevDepartments.filter((d) => d !== departmentToDelete)
+      );
+      toast.success(`Department "${departmentToDelete}" deleted successfully.`);
+    } catch (error: any) {
+      if (
+        error.response &&
+        error.response.data &&
+        error.response.data.message
+      ) {
+        toast.error(error.response.data.message);
+      } else {
+        toast.error("Failed to delete department.");
+      }
+    } finally {
+      setIsLoading(false);
+      setIsDeleteModalOpen(false);
+      setDepartmentToDelete("");
+    }
+  };
+
+  const closeDeleteModal = () => {
+    setDeleteConfirmationText("");
+    setIsDeleteModalOpen(false);
+  };
+
+  const handleResetPassword = useCallback(() => {
+    setIsResetting(true);
+    setTimeout(() => {
+      setIsResetting(false);
+      setRollNumber("");
+    }, 2000);
+  }, [rollNumber]);
+
+  const handleDefaultPasswordSave = useCallback(() => {
+    handleSave("userManagement");
+    setIsWarningModalOpen(false);
+  }, [handleSave]);
+
+  return (
+    <div className="container mx-auto p-4 bg-white min-h-screen pt-20">
+      <LoadingModal
+        isOpen={isLoading || isResetting}
+        message={isResetting ? "Resetting password..." : undefined}
+      />
+      <motion.h1
+        className="text-xl font-bold mb-6 text-gray-800 sm:text-2xl md:text-3xl"
+        initial="hidden"
+        animate="visible"
+        variants={fadeIn}
+      >
+        Admin Control Panel
+      </motion.h1>
+
+      <Tabs
+        value={activeTab}
+        onValueChange={setActiveTab}
+        className="space-y-4"
+      >
+        <TabsList className="flex flex-wrap justify-center gap-2 mb-4 sm:gap-x-8 md:gap-x-16 lg:gap-x-24">
+          <TabsTrigger value="interview-settings">
+            Interview Settings
+          </TabsTrigger>
+          <TabsTrigger value="user-management">User Management</TabsTrigger>
+          <TabsTrigger value="departments-sections">Departments</TabsTrigger>
+          <TabsTrigger value="data-export">Data Export</TabsTrigger>
+        </TabsList>
+
+        {/* <TabsContent value="interview-settings">
+          <Card className="shadow-md">
+            <CardHeader>
+              <CardTitle>Interview Settings</CardTitle>
+              <CardDescription>
+                Configure interview parameters and matching settings
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-6">
+                <div className="space-y-2">
+                  <Label htmlFor="total-questions">Total Questions</Label>
+                  <div className="flex flex-col space-y-2 sm:flex-row sm:space-y-0 sm:items-center sm:space-x-4">
+                    <Slider
+                      id="total-questions"
+                      min={5}
+                      max={30}
+                      step={1}
+                      value={[totalQuestions]}
+                      onValueChange={(value) => setTotalQuestions(value[0])}
+                      className="flex-grow"
+                    />
+                    <span className="font-medium">{totalQuestions}</span>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="coding-percentage">
+                    Coding Questions Percentage
+                  </Label>
+                  <div className="flex flex-col space-y-2 sm:flex-row sm:space-y-0 sm:items-center sm:space-x-4">
+                    <Slider
+                      id="coding-percentage"
+                      min={0}
+                      max={100}
+                      step={5}
+                      value={[codingQuestionPercentage]}
+                      onValueChange={(value) =>
+                        setCodingQuestionPercentage(value[0])
+                      }
+                      className="flex-grow"
+                    />
+                    <span className="font-medium">
+                      {codingQuestionPercentage}%
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+            <CardFooter>
+              <AnimatedButton
+                onClick={() => handleSave("interviewSettings")}
+                variants={buttonVariants}
+                whileHover="hover"
+                whileTap="tap"
+                disabled={!hasChanges.interviewSettings}
+                className="w-full sm:w-auto bg-gray-800 text-white hover:bg-gray-700"
+              >
+                <Save className="w-4 h-4 mr-2" />
+                Save Interview Settings
+              </AnimatedButton>
+            </CardFooter>
+          </Card>
+        </TabsContent> */}
+
+
+        <TabsContent value="user-management" className="">
+          {/* Set Default Password Card */}
+          <Card className="shadow-md mb-6">
+            <CardHeader>
+              <CardTitle>Set Default Password</CardTitle>
+              <CardDescription>
+                Set the default password for students
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {/* Display existing default password with eye icon */}
+                <div className="space-y-2">
+                  <Label htmlFor="existing-default-password">
+                    Existing Default Password
+                  </Label>
+                  <div className="flex flex-col space-y-2 sm:flex-row sm:items-center sm:space-x-2">
+                    <Input
+                      id="existing-default-password"
+                      type={isDefaultPasswordVisible ? "text" : "password"}
+                      value={defaultPassword}
+                      readOnly
+                      className="flex-grow"
+                    />
+                    <Button
+                      variant="ghost"
+                      onClick={() =>
+                        setIsDefaultPasswordVisible(!isDefaultPasswordVisible)
+                      }
+                    >
+                      {isDefaultPasswordVisible ? (
+                        <EyeOff className="w-4 h-4" />
+                      ) : (
+                        <Eye className="w-4 h-4" />
+                      )}
+                    </Button>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="default-password">New Default Password</Label>
+                  <Input
+                    id="default-password"
+                    type="password"
+                    value={newDefaultPassword}
+                    onChange={(e) => setNewDefaultPassword(e.target.value)}
+                    placeholder="Enter new default password"
+                  />
+                </div>
+                <AnimatedButton
+                  onClick={() => setIsWarningModalOpen(true)}
+                  variants={buttonVariants}
+                  whileHover="hover"
+                  whileTap="tap"
+                  disabled={newDefaultPassword === ""}
+                  className="bg-gray-800 text-white hover:bg-gray-700"
+                >
+                  <Save className="w-4 h-4 mr-2" />
+                  Save Default Password
+                </AnimatedButton>
+
+                {/* Warning Modal */}
+                <AnimatePresence>
+                  {isWarningModalOpen && (
+                    <motion.div
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      className="fixed inset-0 z-50 flex items-center justify-center"
+                    >
+                      <div className="absolute inset-0 bg-black opacity-50"></div>
+                      <motion.div
+                        initial={{ scale: 0.9 }}
+                        animate={{ scale: 1 }}
+                        exit={{ scale: 0.9 }}
+                        className="bg-slate-100 p-6 rounded-lg shadow-xl z-10"
+                      >
+                        <h2 className="text-gray-800 font-semibold mb-4">
+                          Attention
+                        </h2>
+                        <p className="text-gray-800 mb-4">
+                          This will change the passwords of all students. Are
+                          you sure you want to proceed?
+                        </p>
+                        <div className="flex justify-end space-x-2">
+                          <Button onClick={() => setIsWarningModalOpen(false)}>
+                            No
+                          </Button>
+                          <Button
+                            onClick={handleDefaultPasswordSave}
+                            className="bg-slate-700 hover:bg-slate-950 text-white"
+                          >
+                            Yes
+                          </Button>
+                        </div>
+                      </motion.div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Reset Admin Password Card */}
+          <Card className="shadow-md">
+            <CardHeader>
+              <CardTitle>Reset Admin Password</CardTitle>
+              <CardDescription>
+                Reset the admin account password
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-6">
+                <div className="space-y-2">
+                  <Label htmlFor="admin-password">New Admin Password</Label>
+                  <Input
+                    id="admin-password"
+                    type="password"
+                    value={adminPassword}
+                    onChange={(e) => setAdminPassword(e.target.value)}
+                    placeholder="Enter new admin password"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="admin-password-confirm">
+                    Confirm New Admin Password
+                  </Label>
+                  <Input
+                    id="admin-password-confirm"
+                    type="password"
+                    value={adminPasswordConfirm}
+                    onChange={(e) => setAdminPasswordConfirm(e.target.value)}
+                    placeholder="Confirm new admin password"
+                  />
+                </div>
+                <AnimatedButton
+                  onClick={() => handleSave("userManagement")}
+                  variants={buttonVariants}
+                  whileHover="hover"
+                  whileTap="tap"
+                  disabled={!isAdminPasswordMatch}
+                  className={`bg-gray-800 text-white hover:bg-gray-700 ${
+                    !isAdminPasswordMatch ? "opacity-50 cursor-not-allowed" : ""
+                  }`}
+                >
+                  <Save className="w-4 h-4 mr-2" />
+                  Reset Admin Password
+                </AnimatedButton>
+                {/* Updated Error Message Condition */}
+                {(adminPassword || adminPasswordConfirm) &&
+                  !isAdminPasswordMatch && (
+                    <p className="text-red-500 text-sm">
+                      Passwords do not match.
+                    </p>
+                  )}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Add new card for resetting student password */}
+          <Card className="shadow-md mt-6">
+            <CardHeader>
+              <CardTitle>Reset Student Password</CardTitle>
+              <CardDescription>
+                Reset a student's password by roll number
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="roll-number">Roll Number</Label>
+                  <Input
+                    id="roll-number"
+                    value={rollNumber}
+                    onChange={(e) => setRollNumber(e.target.value)}
+                    placeholder="Enter roll number"
+                  />
+                </div>
+                <AnimatedButton
+                  onClick={handleResetPassword}
+                  variants={buttonVariants}
+                  whileHover="hover"
+                  whileTap="tap"
+                  disabled={rollNumber === ""}
+                  className="bg-gray-800 text-white hover:bg-gray-700"
+                >
+                  <Save className="w-4 h-4 mr-2" />
+                  Reset Password
+                </AnimatedButton>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="departments-sections">
+          <Card className="shadow-md">
+            <CardHeader>
+              <CardTitle>Departments</CardTitle>
+              <CardDescription>Manage departments</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-6">
+                <div className="space-y-2">
+                  <Label htmlFor="new-department">Add Department</Label>
+                  <div className="flex space-x-2">
+                    <Input
+                      id="new-department"
+                      value={newDepartment}
+                      onChange={(e) => setNewDepartment(e.target.value)}
+                      placeholder="Enter department name"
+                    />
+                    <AnimatedButton
+                      onClick={handleAddDepartment}
+                      variants={buttonVariants}
+                      whileHover="hover"
+                      whileTap="tap"
+                      className="bg-gray-800 text-white hover:bg-gray-700"
+                    >
+                      <Plus className="w-4 h-4 mr-2" />
+                      Add
+                    </AnimatedButton>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label>Existing Departments</Label>
+                  <div className="space-y-2">
+                    {departments.map((dept) => (
+                      <motion.div
+                        key={dept}
+                        initial={{ opacity: 0, y: -10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: 10 }}
+                        className="flex items-center justify-between bg-gray-100 p-2 rounded"
+                      >
+                        <span>{dept}</span>
+                        <AnimatedButton
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleRemoveDepartment(dept)}
+                          variants={buttonVariants}
+                          whileHover="hover"
+                          whileTap="tap"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </AnimatedButton>
+                      </motion.div>
+                    ))}
+                  </div>
+                </div>
+                <AnimatedButton
+                  onClick={() => handleSave("departmentsSections")}
+                  variants={buttonVariants}
+                  whileHover="hover"
+                  whileTap="tap"
+                  disabled={!hasChanges.departmentsSections}
+                  className="bg-gray-800 text-white hover:bg-gray-700"
+                >
+                  <Save className="w-4 h-4 mr-2" />
+                  Save Departments
+                </AnimatedButton>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="data-export">
+          <Card className="shadow-md">
+            <CardHeader>
+              <CardTitle>Data Export</CardTitle>
+              <CardDescription>
+                Download user data in CSV format
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-6">
+                <AnimatedButton
+                  onClick={() => {}}
+                  variants={buttonVariants}
+                  whileHover={["hover", "bounce"]}
+                  whileTap="tap"
+                  className="bg-gray-800 text-white hover:bg-gray-700"
+                >
+                  <Download className="w-4 h-4 mr-2" />
+                  Download All Users CSV
+                </AnimatedButton>
+                <div className="space-y-2">
+                  <Label>Filtered Download</Label>
+                  <Select
+                    value={selectedDepartment}
+                    onValueChange={setSelectedDepartment}
+                  >
+                    <SelectTrigger className="w-[200px]">
+                      <SelectValue placeholder="Select Department" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {departments.map((dept) => (
+                        <SelectItem key={dept} value={dept}>
+                          {dept}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <AnimatedButton
+                    onClick={() => {}}
+                    variants={{ ...buttonVariants, ...bounceVariants }}
+                    whileHover={["hover", "bounce"]}
+                    whileTap="tap"
+                    className="bg-gray-800 text-white hover:bg-gray-700"
+                  >
+                    <Download className="w-4 h-4 mr-2" />
+                    Download Filtered Users CSV
+                  </AnimatedButton>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
+
+      <AnimatePresence>
+        {isDeleteModalOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center"
+          >
+            <div className="absolute inset-0 bg-black opacity-50"></div>
+            <motion.div
+              initial={{ scale: 0.9 }}
+              animate={{ scale: 1 }}
+              exit={{ scale: 0.9 }}
+              className="bg-slate-100 p-6 rounded-lg shadow-xl z-10"
+            >
+              <h2 className="text-gray-800 font-semibold mb-4">Attention</h2>
+              <p className="text-gray-800 mb-4">
+                Please type <strong>'delete'</strong> to confirm the deletion of the department "{departmentToDelete}".
+              </p>
+              <Input
+                value={deleteConfirmationText}
+                onChange={(e) => setDeleteConfirmationText(e.target.value)}
+                placeholder="Type 'delete' to confirm"
+                className="mb-4"
+              />
+              <div className="flex justify-end space-x-2">
+                <Button onClick={closeDeleteModal}>Cancel</Button>
+                <Button
+                  onClick={confirmDeleteDepartment}
+                  disabled={deleteConfirmationText !== "delete"}
+                  className={`bg-red-800 hover:bg-red-700 text-white ${
+                    deleteConfirmationText !== "delete" ? "opacity-50 cursor-not-allowed" : ""
+                  }`}
+                >
+                  Delete
+                </Button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+
+
+
+
+
+/////////////////////////////////////   Student Profile
+
+
+
+
+  // return (
+  //   <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-900 via-blue-900 to-purple-900 pt-20">
+  //     <motion.div
+  //       // initial={{ opacity: 0, scale: 0.9 }}
+  //       // animate={{ opacity: 1, scale: 1 }}
+  //       // transition={{ duration: 0.5 }}
+  //       className="w-full max-w-4xl"
+  //     >
+  //       <Card className="backdrop-blur-lg bg-blue-950/30 shadow-xl rounded-xl overflow-hidden border border-blue-500/20">
+  //         <CardContent className="p-0">
+  //           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+  //             <motion.div
+  //               initial={{ x: -20, opacity: 0 }}
+  //               animate={{ x: 0, opacity: 1 }}
+  //               transition={{ delay: 0.2, duration: 0.5 }}
+  //               className="p-6 space-y-4 bg-gradient-to-br from-blue-900/50 to-purple-800/50"
+  //             >
+  //               <Avatar className="w-32 h-32 mx-auto ring-4 ring-blue-400/30 shadow-lg">
+  //                 <AvatarImage src="/placeholder.svg" alt="Profile picture" />
+  //                 <AvatarFallback>DU</AvatarFallback>
+  //               </Avatar>
+  //               <div className="text-center space-y-2">
+  //                 <h2 className="text-3xl font-bold text-blue-100">DEMOUSER-01</h2>
+  //                 <p className="text-blue-300">Software Engineer</p>
+  //               </div>
+  //               <div className="space-y-2 bg-blue-800/30 p-4 rounded-lg backdrop-blur-sm">
+  //                 <p className="text-blue-200"><strong>Branch:</strong> DEMOUSER-01</p>
+  //                 <p className="text-blue-200"><strong>Section:</strong> DEMOUSER-01</p>
+  //                 <p className="text-blue-200"><strong>Roll Number:</strong> DEMOUSER-01</p>
+  //               </div>
+  //               <div className="space-y-2 bg-blue-800/30 p-4 rounded-lg backdrop-blur-sm">
+  //                 <h3 className="font-semibold text-blue-100">Skills</h3>
+  //                 <div className="flex flex-wrap gap-2">
+  //                   {["React", "Node.js", "TypeScript", "Python", "AWS"].map((skill) => (
+  //                     <span key={skill} className="bg-purple-700/50 text-blue-100 px-2 py-1 rounded-full text-sm">
+  //                       {skill}
+  //                     </span>
+  //                   ))}
+  //                 </div>
+  //               </div>
+  //             </motion.div>
+  //             <div className="p-6 space-y-6">
+  //               <motion.div
+  //                 initial={{ y: 20, opacity: 0 }}
+  //                 animate={{ y: 0, opacity: 1 }}
+  //                 transition={{ delay: 0.4, duration: 0.5 }}
+  //               >
+  //                 <CardHeader className="px-0">
+  //                   <CardTitle className="text-blue-100">Change Password</CardTitle>
+  //                 </CardHeader>
+  //                 <form onSubmit={handlePasswordChange} className="space-y-4">
+  //                   <div className="space-y-2">
+  //                     <Label htmlFor="old-password" className="text-blue-200">Old Password</Label>
+  //                     <Input
+  //                       id="old-password"
+  //                       type="password"
+  //                       required
+  //                       value={oldPassword}
+  //                       onChange={(e) => setOldPassword(e.target.value)}
+  //                       className="bg-blue-900/30 border-blue-500/30 text-blue-100 placeholder-blue-400/50"
+  //                     />
+  //                   </div>
+  //                   <div className="space-y-2">
+  //                     <Label htmlFor="new-password" className="text-blue-200">New Password</Label>
+  //                     <Input
+  //                       id="new-password"
+  //                       type="password"
+  //                       required
+  //                       value={newPassword}
+  //                       onChange={(e) => setNewPassword(e.target.value)}
+  //                       className="bg-blue-900/30 border-blue-500/30 text-blue-100 placeholder-blue-400/50"
+  //                     />
+  //                   </div>
+  //                   <AnimatePresence>
+  //                     {passwordChanged && (
+  //                       <motion.div
+  //                         initial={{ opacity: 0, y: -10 }}
+  //                         animate={{ opacity: 1, y: 0 }}
+  //                         exit={{ opacity: 0, y: -10 }}
+  //                         className="text-green-400 flex items-center gap-2"
+  //                       >
+  //                         <Check size={16} />
+  //                         Password changed successfully!
+  //                       </motion.div>
+  //                     )}
+  //                   </AnimatePresence>
+  //                   <Button
+  //                     type="submit"
+  //                     className="w-full bg-blue-700/50 hover:bg-blue-600/50 text-blue-100 border border-blue-500/50 transition-all duration-300"
+  //                   >
+  //                     Change Password
+  //                   </Button>
+  //                 </form>
+  //               </motion.div>
+  //               <motion.div
+  //                 initial={{ y: 20, opacity: 0 }}
+  //                 animate={{ y: 0, opacity: 1 }}
+  //                 transition={{ delay: 0.6, duration: 0.5 }}
+  //               >
+  //                 <CardHeader className="px-0">
+  //                   <CardTitle className="text-blue-100">Upload Your Resume</CardTitle>
+  //                 </CardHeader>
+  //                 <div className="flex items-center justify-center w-full">
+  //                   <Label
+  //                     htmlFor="dropzone-file"
+  //                     className="flex flex-col items-center justify-center w-full h-64 border-2 border-blue-500/30 border-dashed rounded-lg cursor-pointer bg-blue-900/30 hover:bg-blue-800/30 transition-colors duration-300"
+  //                   >
+  //                     <div className="flex flex-col items-center justify-center pt-5 pb-6">
+  //                       <Upload className="w-10 h-10 mb-3 text-blue-300" />
+  //                       <p className="mb-2 text-sm text-blue-300">
+  //                         <span className="font-semibold">Click to upload</span> or drag and drop
+  //                       </p>
+  //                       <p className="text-xs text-blue-400">PDF, DOC, DOCX (MAX. 5MB)</p>
+  //                     </div>
+  //                     <Input
+  //                       id="dropzone-file"
+  //                       type="file"
+  //                       className="hidden"
+  //                       onChange={handleFileChange}
+  //                       accept=".pdf,.doc,.docx"
+  //                     />
+  //                   </Label>
+  //                 </div>
+  //                 <AnimatePresence>
+  //                   {file && (
+  //                     <motion.p
+  //                       initial={{ opacity: 0, y: -10 }}
+  //                       animate={{ opacity: 1, y: 0 }}
+  //                       exit={{ opacity: 0, y: -10 }}
+  //                       className="mt-2 text-sm text-blue-300 flex items-center gap-2"
+  //                     >
+  //                       <Check size={16} className="text-green-400" />
+  //                       File selected: {file.name}
+  //                     </motion.p>
+  //                   )}
+  //                 </AnimatePresence>
+  //                 <Button
+  //                   className="w-full mt-4 bg-blue-700/50 hover:bg-blue-600/50 text-blue-100 border border-blue-500/50 transition-all duration-300"
+  //                   disabled={!file}
+  //                 >
+  //                   Upload Resume
+  //                 </Button>
+  //               </motion.div>
+  //             </div>
+  //           </div>
+  //         </CardContent>
+  //       </Card>
+  //     </motion.div>
+  //   </div>
+  // )
+
+
+
+
+
+
+
+
+
+
+
+
+  //////////////////////  2nd //////////////////////
+
+  // return (
+  //   <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-900 via-gray-800 to-gray-700 pt-20">
+  //     <motion.div
+  //       // initial={{ opacity: 0, scale: 0.9 }}
+  //       // animate={{ opacity: 1, scale: 1 }}
+  //       // transition={{ duration: 0.5 }}
+  //       className="w-full max-w-4xl"
+  //     >
+  //       <Card className="backdrop-blur-lg bg-gray-900/30 shadow-xl rounded-xl overflow-hidden border border-gray-500/20">
+  //         <CardContent className="p-0">
+  //           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+  //             <motion.div
+  //               initial={{ x: -20, opacity: 0 }}
+  //               animate={{ x: 0, opacity: 1 }}
+  //               transition={{ delay: 0.2, duration: 0.5 }}
+  //               className="p-6 space-y-4 bg-gradient-to-br from-gray-700/50 to-gray-600/50"
+  //             >
+  //               <Avatar className="w-32 h-32 mx-auto ring-4 ring-gray-400/30 shadow-lg">
+  //                 <AvatarImage src="/placeholder.svg" alt="Profile picture" />
+  //                 <AvatarFallback>DU</AvatarFallback>
+  //               </Avatar>
+  //               <div className="text-center space-y-2">
+  //                 <h2 className="text-3xl font-bold text-gray-100">DEMOUSER-01</h2>
+  //                 <p className="text-gray-300">Software Engineer</p>
+  //               </div>
+  //               <div className="space-y-2 bg-gray-800/30 p-4 rounded-lg backdrop-blur-sm">
+  //                 <p className="text-gray-200"><strong>Branch:</strong> DEMOUSER-01</p>
+  //                 <p className="text-gray-200"><strong>Section:</strong> DEMOUSER-01</p>
+  //                 <p className="text-gray-200"><strong>Roll Number:</strong> DEMOUSER-01</p>
+  //               </div>
+  //               <div className="space-y-2 bg-gray-800/30 p-4 rounded-lg backdrop-blur-sm">
+  //                 <h3 className="font-semibold text-gray-100">Skills</h3>
+  //                 <div className="flex flex-wrap gap-2">
+  //                   {["React", "Node.js", "TypeScript", "Python", "AWS"].map((skill) => (
+  //                     <span key={skill} className="bg-gray-600/50 text-gray-100 px-2 py-1 rounded-full text-sm">
+  //                       {skill}
+  //                     </span>
+  //                   ))}
+  //                 </div>
+  //               </div>
+  //             </motion.div>
+  //             <div className="p-6 space-y-6">
+  //               <motion.div
+  //                 initial={{ y: 20, opacity: 0 }}
+  //                 animate={{ y: 0, opacity: 1 }}
+  //                 transition={{ delay: 0.4, duration: 0.5 }}
+  //               >
+  //                 <CardHeader className="px-0">
+  //                   <CardTitle className="text-gray-100">Change Password</CardTitle>
+  //                 </CardHeader>
+  //                 <form onSubmit={handlePasswordChange} className="space-y-4">
+  //                   <div className="space-y-2">
+  //                     <Label htmlFor="old-password" className="text-gray-200">Old Password</Label>
+  //                     <Input
+  //                       id="old-password"
+  //                       type="password"
+  //                       required
+  //                       value={oldPassword}
+  //                       onChange={(e) => setOldPassword(e.target.value)}
+  //                       className="bg-gray-900/30 border-gray-500/30 text-gray-100 placeholder-gray-400/50"
+  //                     />
+  //                   </div>
+  //                   <div className="space-y-2">
+  //                     <Label htmlFor="new-password" className="text-gray-200">New Password</Label>
+  //                     <Input
+  //                       id="new-password"
+  //                       type="password"
+  //                       required
+  //                       value={newPassword}
+  //                       onChange={(e) => setNewPassword(e.target.value)}
+  //                       className="bg-gray-900/30 border-gray-500/30 text-gray-100 placeholder-gray-400/50"
+  //                     />
+  //                   </div>
+  //                   <AnimatePresence>
+  //                     {passwordChanged && (
+  //                       <motion.div
+  //                         initial={{ opacity: 0, y: -10 }}
+  //                         animate={{ opacity: 1, y: 0 }}
+  //                         exit={{ opacity: 0, y: -10 }}
+  //                         className="text-green-400 flex items-center gap-2"
+  //                       >
+  //                         <Check size={16} />
+  //                         Password changed successfully!
+  //                       </motion.div>
+  //                     )}
+  //                   </AnimatePresence>
+  //                   <Button
+  //                     type="submit"
+  //                     className="w-full bg-gray-700/50 hover:bg-gray-600/50 text-gray-100 border border-gray-500/50 transition-all duration-300"
+  //                   >
+  //                     Change Password
+  //                   </Button>
+  //                 </form>
+  //               </motion.div>
+  //               <motion.div
+  //                 initial={{ y: 20, opacity: 0 }}
+  //                 animate={{ y: 0, opacity: 1 }}
+  //                 transition={{ delay: 0.6, duration: 0.5 }}
+  //               >
+  //                 <CardHeader className="px-0">
+  //                   <CardTitle className="text-gray-100">Upload Your Resume</CardTitle>
+  //                 </CardHeader>
+  //                 <div className="flex items-center justify-center w-full">
+  //                   <Label
+  //                     htmlFor="dropzone-file"
+  //                     className="flex flex-col items-center justify-center w-full h-64 border-2 border-gray-500/30 border-dashed rounded-lg cursor-pointer bg-gray-900/30 hover:bg-gray-800/30 transition-colors duration-300"
+  //                   >
+  //                     <div className="flex flex-col items-center justify-center pt-5 pb-6">
+  //                       <Upload className="w-10 h-10 mb-3 text-gray-300" />
+  //                       <p className="mb-2 text-sm text-gray-300">
+  //                         <span className="font-semibold">Click to upload</span> or drag and drop
+  //                       </p>
+  //                       <p className="text-xs text-gray-400">PDF, DOC, DOCX (MAX. 5MB)</p>
+  //                     </div>
+  //                     <Input
+  //                       id="dropzone-file"
+  //                       type="file"
+  //                       className="hidden"
+  //                       onChange={handleFileChange}
+  //                       accept=".pdf,.doc,.docx"
+  //                     />
+  //                   </Label>
+  //                 </div>
+  //                 <AnimatePresence>
+  //                   {file && (
+  //                     <motion.p
+  //                       initial={{ opacity: 0, y: -10 }}
+  //                       animate={{ opacity: 1, y: 0 }}
+  //                       exit={{ opacity: 0, y: -10 }}
+  //                       className="mt-2 text-sm text-gray-300 flex items-center gap-2"
+  //                     >
+  //                       <Check size={16} className="text-green-400" />
+  //                       File selected: {file.name}
+  //                     </motion.p>
+  //                   )}
+  //                 </AnimatePresence>
+  //                 <Button
+  //                   className="w-full mt-4 bg-gray-700/50 hover:bg-gray-600/50 text-gray-100 border border-gray-500/50 transition-all duration-300"
+  //                   disabled={!file}
+  //                 >
+  //                   Upload Resume
+  //                 </Button>
+  //               </motion.div>
+  //             </div>
+  //           </div>
+  //         </CardContent>
+  //       </Card>
+  //     </motion.div>
+  //   </div>
+  // )
+
+
+  //////////////////////  3rd //////////////////////
+
+  // return (
+  //   <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-900 via-teal-900 to-gray-800 pt-20">
+  //     <motion.div
+  //       className="w-full max-w-4xl"
+  //     >
+  //       <Card className="backdrop-blur-lg bg-gray-800/60 shadow-xl rounded-xl overflow-hidden border border-teal-600/30">
+  //         <CardContent className="p-0">
+  //           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+  //             <motion.div
+  //               initial={{ x: -20, opacity: 0 }}
+  //               animate={{ x: 0, opacity: 1 }}
+  //               transition={{ delay: 0.2, duration: 0.5 }}
+  //               className="p-6 space-y-4 bg-gradient-to-br from-teal-800/50 to-gray-700/50"
+  //             >
+  //               <Avatar className="w-32 h-32 mx-auto ring-4 ring-teal-400/30 shadow-lg">
+  //                 <AvatarImage src="/placeholder.svg" alt="Profile picture" />
+  //                 <AvatarFallback>DU</AvatarFallback>
+  //               </Avatar>
+  //               <div className="text-center space-y-2">
+  //                 <h2 className="text-3xl font-bold text-teal-100">DEMOUSER-01</h2>
+  //                 <p className="text-teal-300">Software Engineer</p>
+  //               </div>
+  //               <div className="space-y-2 bg-teal-800/30 p-4 rounded-lg backdrop-blur-sm">
+  //                 <p className="text-teal-200"><strong>Branch:</strong> DEMOUSER-01</p>
+  //                 <p className="text-teal-200"><strong>Section:</strong> DEMOUSER-01</p>
+  //                 <p className="text-teal-200"><strong>Roll Number:</strong> DEMOUSER-01</p>
+  //               </div>
+  //               <div className="space-y-2 bg-teal-800/30 p-4 rounded-lg backdrop-blur-sm">
+  //                 <h3 className="font-semibold text-teal-100">Skills</h3>
+  //                 <div className="flex flex-wrap gap-2">
+  //                   {["React", "Node.js", "TypeScript", "Python", "AWS"].map((skill) => (
+  //                     <span key={skill} className="bg-gray-700/50 text-teal-100 px-2 py-1 rounded-full text-sm">
+  //                       {skill}
+  //                     </span>
+  //                   ))}
+  //                 </div>
+  //               </div>
+  //             </motion.div>
+  //             <div className="p-6 space-y-6">
+  //               <motion.div
+  //                 initial={{ y: 20, opacity: 0 }}
+  //                 animate={{ y: 0, opacity: 1 }}
+  //                 transition={{ delay: 0.4, duration: 0.5 }}
+  //               >
+  //                 <CardHeader className="px-0">
+  //                   <CardTitle className="text-teal-100">Change Password</CardTitle>
+  //                 </CardHeader>
+  //                 <form onSubmit={handlePasswordChange} className="space-y-4">
+  //                   <div className="space-y-2">
+  //                     <Label htmlFor="old-password" className="text-teal-200">Old Password</Label>
+  //                     <Input
+  //                       id="old-password"
+  //                       type="password"
+  //                       required
+  //                       value={oldPassword}
+  //                       onChange={(e) => setOldPassword(e.target.value)}
+  //                       className="bg-gray-900/30 border-teal-500/30 text-teal-100 placeholder-teal-400/50"
+  //                     />
+  //                   </div>
+  //                   <div className="space-y-2">
+  //                     <Label htmlFor="new-password" className="text-teal-200">New Password</Label>
+  //                     <Input
+  //                       id="new-password"
+  //                       type="password"
+  //                       required
+  //                       value={newPassword}
+  //                       onChange={(e) => setNewPassword(e.target.value)}
+  //                       className="bg-gray-900/30 border-teal-500/30 text-teal-100 placeholder-teal-400/50"
+  //                     />
+  //                   </div>
+  //                   <AnimatePresence>
+  //                     {passwordChanged && (
+  //                       <motion.div
+  //                         initial={{ opacity: 0, y: -10 }}
+  //                         animate={{ opacity: 1, y: 0 }}
+  //                         exit={{ opacity: 0, y: -10 }}
+  //                         className="text-green-400 flex items-center gap-2"
+  //                       >
+  //                         <Check size={16} />
+  //                         Password changed successfully!
+  //                       </motion.div>
+  //                     ))}
+  //                   </AnimatePresence>
+  //                   <Button
+  //                     type="submit"
+  //                     className="w-full bg-teal-700/50 hover:bg-teal-600/50 text-teal-100 border border-teal-500/50 transition-all duration-300"
+  //                   >
+  //                     Change Password
+  //                   </Button>
+  //                 </form>
+  //               </motion.div>
+  //               <motion.div
+  //                 initial={{ y: 20, opacity: 0 }}
+  //                 animate={{ y: 0, opacity: 1 }}
+  //                 transition={{ delay: 0.6, duration: 0.5 }}
+  //               >
+  //                 <CardHeader className="px-0">
+  //                   <CardTitle className="text-teal-100">Upload Your Resume</CardTitle>
+  //                 </CardHeader>
+  //                 <div className="flex items-center justify-center w-full">
+  //                   <Label
+  //                     htmlFor="dropzone-file"
+  //                     className="flex flex-col items-center justify-center w-full h-64 border-2 border-teal-500/30 border-dashed rounded-lg cursor-pointer bg-gray-900/30 hover:bg-teal-900/30 transition-colors duration-300"
+  //                   >
+  //                     <div className="flex flex-col items-center justify-center pt-5 pb-6">
+  //                       <Upload className="w-10 h-10 mb-3 text-teal-300" />
+  //                       <p className="mb-2 text-sm text-teal-300">
+  //                         <span className="font-semibold">Click to upload</span> or drag and drop
+  //                       </p>
+  //                       <p className="text-xs text-teal-400">PDF, DOC, DOCX (MAX. 5MB)</p>
+  //                     </div>
+  //                     <Input
+  //                       id="dropzone-file"
+  //                       type="file"
+  //                       className="hidden"
+  //                       onChange={handleFileChange}
+  //                       accept=".pdf,.doc,.docx"
+  //                     />
+  //                   </Label>
+  //                 </div>
+  //                 <AnimatePresence>
+  //                   {file && (
+  //                     <motion.p
+  //                       initial={{ opacity: 0, y: -10 }}
+  //                       animate={{ opacity: 1, y: 0 }}
+  //                       exit={{ opacity: 0, y: -10 }}
+  //                       className="mt-2 text-sm text-teal-300 flex items-center gap-2"
+  //                     >
+  //                       <Check size={16} className="text-green-400" />
+  //                       File selected: {file.name}
+  //                     </motion.p>
+  //                   ))}
+  //                 </AnimatePresence>
+  //                 <Button
+  //                   className="w-full mt-4 bg-teal-700/50 hover:bg-teal-600/50 text-teal-100 border border-teal-500/50 transition-all duration-300"
+  //                   disabled={!file}
+  //                 >
+  //                   Upload Resume
+  //                 </Button>
+  //               </motion.div>
+  //             </div>
+  //           </div>
+  //         </CardContent>
+  //       </Card>
+  //     </motion.div>
+  //   </div>
+  // )
+  
