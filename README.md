@@ -1,65 +1,40 @@
 # SkillSage
 
-SkillSage lets colleges run technical interview practice for an entire cohort while tailoring each student's questions to their résumé and previous answers. Students can revisit feedback on individual responses. Administrators can compare results across a batch to choose topics for the next practice session.
+SkillSage lets a college run the same core interview across a batch while giving each student follow-up questions based on their résumé and answers. Administrators control the question mix and interview window. Students can revisit their responses, marks and feedback after submission.
 
-![A sample Java interview asks the student to explain principal component analysis. The workspace offers a text response, question rephrasing and a code editor.](docs/images/interview-workspace.jpg)
+![A sample Java interview with a question, response field and code entry.](docs/images/interview-workspace.jpg)
 
-## From setup to feedback
+## From roster to feedback
 
-1. A college administrator sets up batches, imports students from a roster and creates an interview. The administrator controls when students can start it.
-2. A student uploads a Word résumé. The API extracts text with Mammoth, generates a short summary, and stores it with a reference to the uploaded file.
-3. The API combines the résumé summary with the interview subject and topic to generate the opening question. It stores each exchange, evaluates the response and uses prior exchanges when requesting the next technical or coding question.
-4. Students can type, dictate in browsers that support `webkitSpeechRecognition`, or submit code through the Ace editor. The API sends code responses for model feedback. The editor includes Python, Java, JavaScript, C/C++ and C# syntax modes.
-5. Students can revisit their question-level feedback and overall assessment. Administrators can review participation, marks and performance across interviews.
+1. College administrators import a roster, assign batches and configure interviews with predefined questions and counts for technical and coding questions. They start or pause an interview manually.
+2. A student uploads a Word résumé. The API extracts text with Mammoth and saves a short summary as context. An attempt starts with the first predefined question when one is configured, or with a generated opening question.
+3. The API stores each exchange and evaluates the answer. After the predefined set, it uses the résumé, subject, topic and exchange history to request the next technical or coding question. The React client supports typed answers, dictation through `react-speech-recognition` in compatible browsers, and code entry with Ace.
+4. After submission, the student can review question-level and overall feedback. Administrators can inspect interview results across the batch.
 
-## Inside the repository
+## Implementation
 
-| Component | Responsibility |
+| Area | Code and behavior |
 | --- | --- |
-| `frontend/` | React, TypeScript and Vite client for administrators and students. Axios calls the API, Ace handles code input and Recharts renders performance charts. |
-| `backend/src/controllers/` | Express handlers for rosters, résumé uploads, interview state, answers and feedback. |
-| `backend/src/Api-helper/helper.ts` | OpenAI prompts for summarization, question generation and evaluation. The checked-in helper selects GPT-4o. |
-| `backend/src/models/` | PostgreSQL schema defined with Sequelize. A shared interview sets the topics and question counts. Each student attempt has its own record and question–answer history. |
-| `backend/doc/api-documentation.yml` | API reference to read alongside the route definitions in `backend/src/routes/`. |
+| Client | [React and TypeScript client](frontend/src) with Vite, Ace and Recharts. The interview UI also handles fullscreen and visibility changes. |
+| API and storage | [Express controllers](backend/src/controllers) and [Sequelize models](backend/src/models) persist interview definitions, individual attempts, exchanges and assessments in PostgreSQL. |
+| Model calls | The [OpenAI helper](backend/src/Api-helper/helper.ts) selects `o3-mini`, requests structured JSON and retries unsuccessful calls up to three attempts. Successful responses record input and output tokens and an estimated cost by task. |
+| Deployment | [Docker Compose](docker-compose.yaml) runs prebuilt client and API images and expects a separately configured database. [Kubernetes manifests](Kubernetes) describe deployments, services, frontend configuration and ingress. [AWS deployment material](deployment) includes an EC2 script and design recommendations. |
 
 ## Local development
 
-The client expects the API at `http://localhost:5000/api/v1`. Use a dedicated development PostgreSQL database. On startup, Sequelize synchronizes the model definitions with `alter: true`. AI-backed flows require your own OpenAI API key with access to the configured model.
+Use Node.js with npm, a dedicated PostgreSQL development database and an OpenAI key with access to the model configured in the helper. Startup uses Sequelize schema synchronization with `alter: true`.
 
-Create `backend/.env` with your local values for the following settings.
+1. Create `backend/.env`. Set `DATABASE_ONLINE=false`, then set `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER` and `DB_PASSWORD` for your database. Set `PORT=5000`, `COOKIE_NAME`, independent `COOKIE_SECRET` and `JWT_SECRET` values, and the server-side model key `O1_KEY`. Set `GOD_PASSWORD` for the platform administration flow. The hosted database path uses `DATABASE_ONLINE=true` and `PGHOST`, `PGDATABASE`, `PGUSER`, `PGPASSWORD`.
+2. Create `frontend/public/env.js` for local development with the following content. The client reads this object before assigning its localhost API URL. A remote deployment also needs to remove the localhost override in `frontend/src/App.tsx`.
 
-| Settings | Purpose |
-| --- | --- |
-| `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD` | Address and credentials for the development database |
-| `PORT` | Set to `5000` for the checked-in frontend |
-| `COOKIE_NAME`, `COOKIE_SECRET`, `JWT_SECRET` | A cookie name and two independently generated signing secrets |
-| `OPEN_AI_SECRET` | Server-side OpenAI key |
+   ```js
+   window.env = { API_URL: "http://localhost:5000/api/v1" };
+   ```
 
-From the repository root, start the API in one terminal. Use a Node.js installation with npm and run in development mode for local HTTP.
+3. From `backend/`, run `npm ci`, `npm run build` and `node dist/index.js`. From `frontend/` in another terminal, run `npm ci` and `npm run dev`. Open `http://localhost:5173` and use a development college and sample accounts.
 
-```sh
-cd backend
-npm ci
-npm run build
-node dist/index.js
-```
+## Team, usage and tests
 
-Start the client in a second terminal and open `http://localhost:5173`.
+Four people developed SkillSage over roughly a year. Baba Gandhi Kandagatla and one teammate co-developed the backend. Two teammates focused on the frontend.
 
-```sh
-cd frontend
-npm ci
-npm run dev
-```
-
-Use a local test college and student account to exercise the interview flow. The repository also contains Dockerfiles and a Compose definition. Its backend bind mount covers the application's built directory inside the image, so the container setup needs adjustment for a fresh checkout.
-
-## Team and college use
-
-Four people built SkillSage over roughly a year. Baba Gandhi Kandagatla and one teammate co-developed the backend, and two teammates focused on the frontend.
-
-The team reports **200–300 concurrent interviews** during internal college use. In a separate Playwright exercise, approximately **1,500 simulated sessions** progressed through different interview stages, issuing real GPT requests at staggered times. The figure measures concurrent sessions. The test scripts and measurements are unavailable in this repository.
-
-## Reproducible load testing
-
-A useful next step is to publish an anonymized Playwright scenario with the ramp-up schedule, session counts, error rate and response-time percentiles. That would make it possible to compare changes to the interview workflow under the same load.
+The team reports **200–300 concurrent interviews** during internal college use and a separate Playwright exercise involving approximately **1,500 simulated sessions**, with real model requests staggered across interview stages. The [browser scenarios](playwright) and [four-worker configuration](playwright.config.ts) illustrate interactions with the application. The checked-in last-run record reports a failure and contains no scale measurements. Reproducing the larger exercise would require a sanitized test dataset, the ramp-up schedule and measured latency and error rates.
