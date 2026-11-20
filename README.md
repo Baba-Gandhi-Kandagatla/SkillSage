@@ -2,7 +2,7 @@
 
 ## Introduction
 
-We built SkillSage so our college could give a whole batch the same core interview questions and still give each student follow-ups based on their résumé and answers. I shared responsibility for the backend with one teammate.
+We built SkillSage so our college could give a whole batch the same core interview questions and still give each student follow-ups based on their resume and answers. I shared responsibility for the backend with one teammate.
 
 ## Tech stack
 
@@ -21,8 +21,8 @@ We built SkillSage so our college could give a whole batch the same core intervi
 
 ## The process
 
-1. **Prepare the context.** The API extracts text from a Word résumé with Mammoth, summarizes it and saves the summary for the interview.
-2. **Start an attempt.** The first predefined question opens the interview when one is configured. Otherwise, the model generates an opening question from the résumé, subject and topic.
+1. **Prepare the context.** The API extracts text from a Word resume with Mammoth, summarizes it and saves the summary for the interview.
+2. **Start an attempt.** The first predefined question opens the interview when one is configured. Otherwise, the model generates an opening question from the resume, subject and topic.
 3. **Evaluate and adapt.** The API stores each question and response, records marks and feedback, and uses the exchange history to generate follow-ups after the predefined set. Coding answers have a separate evaluation prompt.
 4. **Summarize the attempt.** On submission, the service aggregates the marks and generates overall feedback for review.
 
