@@ -59,3 +59,7 @@ Use a local test college and student account to exercise the interview flow. The
 Four people built SkillSage over roughly a year. Baba Gandhi Kandagatla and one teammate co-developed the backend, and two teammates focused on the frontend.
 
 The team reports **200–300 concurrent interviews** during internal college use. In a separate Playwright exercise, approximately **1,500 simulated sessions** progressed through different interview stages, issuing real GPT requests at staggered times. The figure measures concurrent sessions. The test scripts and measurements are unavailable in this repository.
+
+## Reproducible load testing
+
+A useful next step is to publish an anonymized Playwright scenario with the ramp-up schedule, session counts, error rate and response-time percentiles. That would make it possible to compare changes to the interview workflow under the same load.
