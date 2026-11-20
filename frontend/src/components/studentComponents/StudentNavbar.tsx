@@ -16,10 +16,14 @@ import { useAuth } from './../../Context/AuthContext';
 const navItems = [
   { name: 'Dashboard', href: '/student/interviews' },
   { name: 'Completed Interviews', href: '/student/completed-interviews' },
-  { name: 'Performance', href: '/student/performance' },
+  // { name: 'Performance', href: '/student/performance' },
 ];
 
-export function StudentNavbar() {
+interface StudentNavbarProps {
+  children?: React.ReactNode;
+}
+
+export const StudentNavbar: React.FC<StudentNavbarProps> = ({ children }) => {
   const { isLoggedIn, user, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation(); // Initialize useLocation
@@ -44,14 +48,17 @@ export function StudentNavbar() {
 
   return (
     <>
-      <nav className="fixed top-0 left-0 right-0 z-50 bg-white bg-opacity-20 backdrop-filter backdrop-blur-lg shadow-md bg-gradient-to-b from-grey-900/10 to-grey-200/90">
+      <nav id="student-navbar" className="fixed top-0 left-0 right-0 z-50 bg-white bg-opacity-20 backdrop-filter backdrop-blur-lg shadow-md bg-gradient-to-b from-grey-900/10 to-grey-200/90">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
+            {/* Logo */}
             <div className="flex-shrink-0">
               <Link to="/">
                 <img className="h-14 w-auto" src="/Logo.png" alt="Logo" />
               </Link>
             </div>
+
+            {/* Navigation Items */}
             <div className="hidden md:flex flex-grow justify-center">
               <div className="flex items-baseline space-x-4">
                 {navItems.map((item) => (
@@ -68,50 +75,56 @@ export function StudentNavbar() {
                 ))}
               </div>
             </div>
-            <div className="hidden md:block">
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <motion.button
-                    className="bg-gray-800 flex text-sm rounded-full focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-800 focus:ring-white"
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                  >
-                    <span className="sr-only">Open user menu</span>
-                    <img
-                      className="h-8 w-8 rounded-full object-contain"
-                      src='/OWL.png'
-                      alt="Profile"
-                    />
-                  </motion.button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent>
-                  <DropdownMenuLabel>My Account</DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem>Name: {user.username}</DropdownMenuItem>
-                  <DropdownMenuItem>Roll Number: {user.rollnumber}</DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link 
-                      to="/student/profile" 
-                      className="flex items-center justify-between w-full"
-                      onMouseEnter={() => setIsHoveringProfile(true)}
-                      onMouseLeave={() => setIsHoveringProfile(false)}
+
+            {/* Right side items */}
+            <div className="flex items-center space-x-4">
+              {children} {/* Dark mode toggle */}
+              <div className="hidden md:block">
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <motion.button
+                      className="bg-gray-800 flex text-sm rounded-full focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-800 focus:ring-white"
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
                     >
-                      View Profile
-                      <motion.div
-                        initial={{ opacity: 0, x: -10 }}
-                        animate={{ opacity: isHoveringProfile ? 1 : 0, x: isHoveringProfile ? 0 : -10 }}
-                        transition={{ duration: 0.2 }}
+                      <span className="sr-only">Open user menu</span>
+                      <img
+                        className="h-8 w-8 rounded-full object-contain"
+                        src='/OWL.png'
+                        alt="Profile"
+                      />
+                    </motion.button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent>
+                    <DropdownMenuLabel>My Account</DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem>Name: {user.username}</DropdownMenuItem>
+                    <DropdownMenuItem>Roll Number: {user.rollnumber}</DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link 
+                        to="/student/profile" 
+                        className="flex items-center justify-between w-full"
+                        onMouseEnter={() => setIsHoveringProfile(true)}
+                        onMouseLeave={() => setIsHoveringProfile(false)}
                       >
-                        <ArrowRight className="h-4 w-4" />
-                      </motion.div>
-                    </Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={handleLogout}>
-                    Log Out
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+                        View Profile
+                        <motion.div
+                          initial={{ opacity: 0, x: -10 }}
+                          animate={{ opacity: isHoveringProfile ? 1 : 0, x: isHoveringProfile ? 0 : -10 }}
+                          transition={{ duration: 0.2 }}
+                        >
+                          <ArrowRight className="h-4 w-4" />
+                        </motion.div>
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={handleLogout}>
+                      Log Out
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
             </div>
+
             <div className="-mr-2 flex md:hidden">
               <Button
                 onClick={() => setIsOpen(!isOpen)}

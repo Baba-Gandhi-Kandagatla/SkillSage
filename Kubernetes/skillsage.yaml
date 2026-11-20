@@ -1,0 +1,188 @@
+# Deployment: Runs your Node.js backend container on port 5000
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend
+  labels:
+    app: backend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: backend
+  template:
+    metadata:
+      labels:
+        app: backend
+    spec:
+      containers:
+      - name: backend
+        image: bharadwajreddy1406/skillsage-backend:latest
+        ports:
+        - containerPort: 5000
+        env:
+          - name: PORT
+            valueFrom:
+              secretKeyRef:
+                name: env-secrets
+                key: PORT
+          - name: FRONTEND_URL
+            valueFrom:
+              secretKeyRef:
+                name: env-secrets
+                key: FRONTEND_URL
+          - name: DB_USER
+            valueFrom:
+              secretKeyRef:
+                name: env-secrets
+                key: DB_USER
+          - name: DB_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: env-secrets
+                key: DB_PASSWORD
+          - name: DB_HOST
+            valueFrom:
+              secretKeyRef:
+                name: env-secrets
+                key: DB_HOST
+          - name: DB_NAME
+            valueFrom:
+              secretKeyRef:
+                name: env-secrets
+                key: DB_NAME
+          - name: DB_PORT
+            valueFrom:
+              secretKeyRef:
+                name: env-secrets
+                key: DB_PORT
+          - name: OPEN_AI_SECRET
+            valueFrom:
+              secretKeyRef:
+                name: env-secrets
+                key: OPEN_AI_SECRET
+          - name: GROQ_API_KEY
+            valueFrom:
+              secretKeyRef:
+                name: env-secrets
+                key: GROQ_API_KEY
+          - name: COOKIE_NAME
+            valueFrom:
+              secretKeyRef:
+                name: env-secrets
+                key: COOKIE_NAME
+          - name: COOKIE_SECRET
+            valueFrom:
+              secretKeyRef:
+                name: env-secrets
+                key: COOKIE_SECRET
+          - name: JWT_SECRET
+            valueFrom:
+              secretKeyRef:
+                name: env-secrets
+                key: JWT_SECRET
+          - name: O1_KEY0
+            valueFrom:
+              secretKeyRef:
+                name: env-secrets
+                key: O1_KEY0
+          - name: O1_KEY
+            valueFrom:
+              secretKeyRef:
+                name: env-secrets
+                key: O1_KEY
+          - name: DATABASE_URL
+            valueFrom:
+              secretKeyRef:
+                name: env-secrets
+                key: DATABASE_URL
+          - name: DATABASE_ONLINE
+            valueFrom:
+              secretKeyRef:
+                name: env-secrets
+                key: DATABASE_ONLINE
+          - name: PGHOST
+            valueFrom:
+              secretKeyRef:
+                name: env-secrets
+                key: PGHOST
+          - name: PGDATABASE
+            valueFrom:
+              secretKeyRef:
+                name: env-secrets
+                key: PGDATABASE
+          - name: PGUSER
+            valueFrom:
+              secretKeyRef:
+                name: env-secrets
+                key: PGUSER
+          - name: PGPASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: env-secrets
+                key: PGPASSWORD
+
+---
+# Service: Exposes the backend on port 5000 (ClusterIP)
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend-service
+spec:
+  selector:
+    app: backend
+  ports:
+  - protocol: TCP
+    port: 5000
+    targetPort: 5000
+  type: ClusterIP
+---
+# Ingress: Routes external traffic from skillsage.local/api/v1 to the backend-service
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: app-ingress
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+spec:
+  ingressClassName: nginx
+  rules:
+  - host: skillsage.local
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: backend-service
+            port:
+              number: 5000
+
+---
+
+apiVersion: v1
+kind: Secret
+metadata:
+  name: env-secrets
+type: Opaque
+stringData: 
+  PORT: "5000"
+  FRONTEND_URL: localhost
+  DB_USER: postgres
+  DB_PASSWORD: replace-with-database-password
+  DB_HOST: localhost
+  DB_NAME: SkillSage
+  DB_PORT: "5432"
+  OPEN_AI_SECRET: replace-with-openai-key
+  GROQ_API_KEY: replace-with-groq-key
+  COOKIE_NAME: auth_token
+  COOKIE_SECRET: replace-with-cookie-secret
+  JWT_SECRET: replace-with-jwt-secret
+  O1_KEY0: replace-with-github-token
+  O1_KEY: replace-with-github-token
+  DATABASE_URL: postgresql://user:replace-with-database-password@host/database
+  DATABASE_ONLINE: "true"
+  PGHOST: ep-cold-shadow-a10ok2yv-pooler.ap-southeast-1.aws.neon.tech
+  PGDATABASE: neondb
+  PGUSER: neondb_owner
+  PGPASSWORD: npg_oVT8ke5dSGzw

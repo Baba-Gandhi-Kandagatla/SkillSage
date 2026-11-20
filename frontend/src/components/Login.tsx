@@ -32,11 +32,6 @@ export function LoginPageComponent() {
 
   return (
     <div className="relative min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-      <button onClick={()=>{navigate("/skillsage/god")}}
-        className="absolute bottom-4 right-4 bg-gray-100 text-gray-100 px-4 py-2 rounded z-50"
-      >
-        GOD
-      </button>
       <div className="absolute inset-0 overflow-hidden">
         <div className="absolute bottom-20 w-1/2 h-full bg-gray-100 rounded-full transform -translate-y-1/2 translate-x-1/2"></div>
       </div>

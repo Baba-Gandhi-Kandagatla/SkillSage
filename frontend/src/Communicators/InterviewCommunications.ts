@@ -176,3 +176,16 @@ export const submitInterview = async (interview_id:string) => {
     throw error;
   }
 };
+
+export const incrementViolation = async (interview_id: string) => {
+  try {
+    const res = await axios.get(`/interview/violation/${interview_id}`);
+    if (res.status !== 200) {
+      throw new Error("Failed to record violation");
+    }
+    return res.data.violation;
+  } catch (error) {
+    console.error("Error recording violation:", error);
+    throw error;
+  }
+};

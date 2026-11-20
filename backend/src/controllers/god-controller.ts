@@ -1,8 +1,20 @@
-import bcrypt from "bcryptjs";
 import { Request, Response } from "express";
 import Admin from "../models/Admin.js";
 import College from "../models/College.js";
 import { Hashing } from "../utils/hash.js";
+
+export const godLogin = async (req: Request, res: Response) => {
+  const password = process.env.GOD_PASSWORD as string;
+  const gotPassword = req.body.godPassword;
+
+  if (gotPassword === password) {
+    return res
+      .status(200)
+      .json({ isHeGod: true, message: "God login successful" });
+  } else {
+    return res.status(401).json({ isHeGod: false, error: "Invalid god password" });
+  }
+};
 
 export const addCollege = async (req: Request, res: Response) => {
   const { name, defaultPassword } = req.body;
@@ -21,7 +33,6 @@ export const addCollege = async (req: Request, res: Response) => {
   }
 };
 
-
 export const getColleges = async (req: Request, res: Response) => {
   try {
     const colleges = await College.findAll();
@@ -33,6 +44,14 @@ export const getColleges = async (req: Request, res: Response) => {
   } catch (error) {
     res.status(500).json({ error: "Internal server error: " + error.message });
   }
+};
+
+export const updateCollege = async (req: Request, res: Response) => {
+  // TODO : to update college subscriptions and all
+  res.json({
+    message:
+      "update college feature, used to manage college subsriptions in future",
+  });
 };
 
 export const deleteCollege = async (req: Request, res: Response) => {
@@ -47,7 +66,31 @@ export const deleteCollege = async (req: Request, res: Response) => {
   } catch (error) {
     res.status(500).json({ error: "Internal server error: " + error.message });
   }
-}
+};
+
+export const addAdmin = async (req: Request, res: Response) => {
+  const { rollNumber, name, password, college } = req.body;
+  try {
+    const existingUser = await Admin.findOne({
+      where: { roll_number: rollNumber },
+    });
+    if (existingUser) {
+      return res.status(409).json({ error: "Roll number already exists." });
+    }
+    const hashedPassword = await Hashing(password);
+
+    const newUser = await Admin.create({
+      roll_number: rollNumber,
+      username: name,
+      password: hashedPassword,
+      college_id: college,
+    });
+    const { password: _, ...userWithoutPassword } = newUser.get();
+    res.status(201).json(userWithoutPassword);
+  } catch (error) {
+    res.status(500).json({ error: "Internal server error: " + error.message });
+  }
+};
 
 export const getCollegeAdmins = async (req: Request, res: Response) => {
   try {
@@ -58,32 +101,10 @@ export const getCollegeAdmins = async (req: Request, res: Response) => {
     }
     const admins = await Admin.findAll({ where: { college_id: id } });
     const allAdmins = admins.map((admin) => {
-      const { preferences, ...rest } = admin.get();
+      const { preferences, password, ...rest } = admin.get();
       return rest;
     });
     res.status(200).json(allAdmins);
-  } catch (error) {
-    res.status(500).json({ error: "Internal server error: " + error.message });
-  }
-}
-
-export const addAdmin = async (req: Request, res: Response) => {
-  const { rollNumber, name, password, college } = req.body;
-  try {
-    const existingUser = await Admin.findOne({ where: { roll_number: rollNumber } });
-    if (existingUser) {
-      return res.status(409).json({ error: "Roll number already exists." });
-    }
-    const hashedPassword = await bcrypt.hash(password, 10);
-
-    const newUser = await Admin.create({
-      roll_number: rollNumber,
-      username: name,
-      password: hashedPassword,
-      college_id: college,
-    });
-    const { password: _, ...userWithoutPassword } = newUser.get();
-    res.status(201).json(userWithoutPassword);
   } catch (error) {
     res.status(500).json({ error: "Internal server error: " + error.message });
   }
@@ -99,7 +120,7 @@ export const upsertAdmin = async (req: Request, res: Response) => {
     }
     const gotCollege = foundCollege.get();
     const admin = await Admin.findOne({
-      where: { roll_number: rollNumber, college_id: gotCollege.id }
+      where: { roll_number: rollNumber, college_id: gotCollege.id },
     });
 
     if (admin) {
@@ -108,7 +129,7 @@ export const upsertAdmin = async (req: Request, res: Response) => {
         username: name,
         password: await Hashing(gotCollege.defaultPassword),
         college_id: gotCollege.id,
-      })
+      });
       return res.status(201).json({ message: "admin updated successfully" });
     } else {
       const hashedPassword = await Hashing(gotCollege.defaultPassword);
@@ -126,6 +147,53 @@ export const upsertAdmin = async (req: Request, res: Response) => {
   }
 };
 
+export const updateAdmin = async (req: Request, res: Response) => {
+  const roll_number = req.params.roll_number;
+  const { username, resetPassword } = req.body;
+  try {
+    // Find the admin using roll_number
+    const admin = await Admin.findOne({ where: { roll_number } });
+    if (!admin) {
+      return res.status(404).json({ error: "Admin not found." });
+    }
+    // Update username
+    console.log(admin.get());
+    admin.username = username;
+    console.log(admin.username);
+    // If resetPassword is true, then fetch college's defaultPassword and hash it
+    if (resetPassword) {
+      const college = await College.findByPk(admin.get().college_id);
+      if (!college) {
+        return res.status(404).json({ error: "Associated college not found." });
+      }
+      const hashedPassword = await Hashing(college.get().defaultPassword);
+      admin.password = hashedPassword;
+    }
+    await admin.save();
+    const { password, ...updatedAdmin } = admin.get();
+    res.status(200).json(updatedAdmin);
+  } catch (error) {
+    // console.log(error)
+    res.status(500).json({ error: "Internal server error: " + error.message });
+  }
+};
+
+export const deleteAdmin = async (req: Request, res: Response) => {
+  try {
+    const id = req.params.roll_number;
+    const admin = await Admin.findByPk(id);
+
+    if (!admin) {
+      return res.status(404).json({ error: "Admin not found." });
+    }
+    console.log(admin.get()) + "\n\n\n\n";
+    await admin.destroy();
+    res.status(200).json({ message: "Admin deleted successfully." });
+  } catch (error) {
+    res.status(500).json({ error: "Internal server error: " + error.message });
+  }
+};
+
 // [
 //   {
 //       "roll_number": "kmitadmin1",
@@ -138,9 +206,9 @@ export const upsertAdmin = async (req: Request, res: Response) => {
 // ]
 
 // export interface IAdmin {
-  //     roll_number: string;
-  //     username: string;
-  //     password: string;
-  //     college_id: bigint;
-  //     preferences: IAdminPreferences;
-  // }
+//     roll_number: string;
+//     username: string;
+//     password: string;
+//     college_id: bigint;
+//     preferences: IAdminPreferences;
+// }

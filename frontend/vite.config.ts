@@ -6,9 +6,12 @@ import { defineConfig } from "vite";
 export default defineConfig({
   plugins: [
     react(),
-
     checker({ typescript: false }), // Disables TypeScript checking
   ],
+  server: {
+    port: 5173,
+    host: true,
+  },
   preview: {
     port: 5173,
     host: true,
@@ -17,5 +20,5 @@ export default defineConfig({
     alias: {
       "@": path.resolve(__dirname, "./src"),
     },
-  },
+  }
 });

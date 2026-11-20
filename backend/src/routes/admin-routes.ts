@@ -4,7 +4,17 @@ import { getProfile } from "../controllers/suprize.js";
 import { addStudent, updateStudent, createInterview, getAllInterviewsA, updateInterviewStatus, 
     deleteInterview,get_student_profile, getAllStudents, deleteStudent, startInterviewStatus, pauseInterviewStatus, 
     addDepartment, addStudents, changePassword, getAttendance, deleteDepartment,
-    getAllDepartments, getDefaultPassword, setDefaultPassword,getDepartment,getStudentAttendance,getStudentMarksByInterview, deleteAllStudents,view_student,getInterwievResult, resetStudentPassword ,setPreferences , getPreferences} from "../controllers/admin-controller.js";
+    getAllDepartments, getDefaultPassword, setDefaultPassword,getDepartment,getStudentAttendance,getStudentMarksByInterview, deleteAllStudents,view_student,getInterwievResult, resetStudentPassword ,setPreferences , getPreferences,
+    getAllInterviewInstancesCSV,getEvalMetrics, getStudAttendedInter,getStudentByDep,getAllInfoOfStudent,getDashboardData,
+    getStudentsByDepartment,
+    addSubjectToPreferences,
+    addSubtopicToSubject,
+    getSubjects,
+    updateSubjectName,
+    deleteSubject,
+    updateSubtopicInSubject,
+    deleteSubtopicFromSubject,} from "../controllers/admin-controller.js";
+import { get } from "http";
 
 
 const adminRouter = Router();
@@ -39,4 +49,27 @@ adminRouter.get("/getpreference",verifyTokenAdmin, getPreferences );
 adminRouter.get("/getInterviewResult/:id/:rollNumber", verifyTokenAdmin, getInterwievResult);
 adminRouter.get("/getStudentMarksByInterview/:rollNumber", verifyTokenAdmin, getStudentMarksByInterview);
 adminRouter.get("/getStudentAttendance/:rollNumber", verifyTokenAdmin, getStudentAttendance);
+adminRouter.get("/getInterviewCSV/:id",verifyTokenAdmin, getAllInterviewInstancesCSV);
+adminRouter.get("/evalMetrics/:rollNumber", verifyTokenAdmin, getEvalMetrics);
+adminRouter.get("/getStudAttendedInter/:rollNumber", verifyTokenAdmin, getStudAttendedInter);
+adminRouter.get("/getStudentByDep/:depID", verifyTokenAdmin, getStudentByDep);
+adminRouter.get("/getViewStudentDetails/:rollNumber", verifyTokenAdmin, getAllInfoOfStudent);
+adminRouter.get("/getDashboardData", verifyTokenAdmin, getDashboardData);
+adminRouter.get("/getStudentsByDepartment/:department_id", verifyTokenAdmin, getStudentsByDepartment);
+
+//in testing
+// adminRouter.post("/preference/topic", verifyTokenAdmin, addTopicToPreferences);
+// adminRouter.get("/preference/topic", verifyTokenAdmin, getTopicsFromPreferences);
+// adminRouter.put("/preference/topic/:topic", verifyTokenAdmin, updateTopicInPreferences);
+// adminRouter.delete("/preference/topic/:topic", verifyTokenAdmin, deleteTopicFromPreferences);
+
+adminRouter.post('/preferences/subject', verifyTokenAdmin, addSubjectToPreferences);
+adminRouter.post('/preferences/subject/subtopic', verifyTokenAdmin, addSubtopicToSubject);
+adminRouter.get('/preferences/subjects', verifyTokenAdmin, getSubjects);
+adminRouter.put('/preferences/subject/:subject', verifyTokenAdmin, updateSubjectName);
+adminRouter.delete('/preferences/subject/:subject', verifyTokenAdmin, deleteSubject);
+adminRouter.put('/preferences/subject/:subjectName/subtopic/:subtopic', verifyTokenAdmin, updateSubtopicInSubject);
+adminRouter.delete('/preferences/subject/:subjectName/subtopic/:subtopic', verifyTokenAdmin, deleteSubtopicFromSubject);
+
+
 export default adminRouter;

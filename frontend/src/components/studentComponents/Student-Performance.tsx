@@ -1,8 +1,7 @@
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { motion } from "framer-motion";
-import { useState } from "react";
-// import { Progress } from "@/components/ui/progress"
 import { TooltipProvider } from "@/components/ui/tooltip";
 import {
   Bar,
@@ -13,84 +12,95 @@ import {
   Line,
   LineChart,
   Pie,
-  PieChart,
   ResponsiveContainer,
   Tooltip,
   XAxis,
-  YAxis
+  YAxis,
 } from "recharts";
+import { getOnlyEvalMetrics } from "@/Communicators/studentCommunications";
+import { Loader2 } from "lucide-react"; 
+import { PolarArea } from "react-chartjs-2";
+import {
+  Chart as ChartJS,
+  RadialLinearScale,
+  ArcElement,
+  Tooltip as ChartTooltip,
+  Legend as ChartLegend,
+} from "chart.js";
+import ChartDataLabels from 'chartjs-plugin-datalabels';
 
-const technicalKnowledge = [
-  { name: "JavaScript", value: 30 },
-  { name: "React", value: 25 },
-  { name: "Node.js", value: 20 },
-  { name: "Python", value: 15 },
-  { name: "SQL", value: 10 },
-];
-
-const fundamentalKnowledge = [
-  { name: "Data Structures", value: 35 },
-  { name: "Algorithms", value: 30 },
-  { name: "System Design", value: 20 },
-  { name: "OOP", value: 15 },
-];
-
-// const communicationSkills = [
-//   { skill: "Leadership", score: 8 },
-//   { skill: "Written", score: 7 },
-//   { skill: "Presentation", score: 6 },
-//   { skill: "Teamwork", score: 9 },
-//   { skill: "Verbal", score: 7 },
-// ];
-
-const weeklyPerformance = [
-  { week: "Interview 1", score: 75 },
-  { week: "Interview 2", score: 82 },
-  { week: "Interview 3", score: 78 },
-  { week: "Interview 4", score: 85 },
-  { week: "Interview 5", score: 89 },
-  { week: "Interview 6", score: 92 },
-];
-
-const proficiencyLevels = [
-  { name: "Problem Solving", value: 75 },
-  { name: "Code Quality", value: 80 },
-  { name: "Debugging", value: 70 },
-  { name: "Testing", value: 65 },
-];
-
-// const weeklyTrends = [
-//   { name: "Mon", productivity: 70, focus: 65, quality: 75 },
-//   { name: "Tue", productivity: 75, focus: 70, quality: 80 },
-//   { name: "Wed", productivity: 80, focus: 75, quality: 85 },
-//   { name: "Thu", productivity: 85, focus: 80, quality: 90 },
-//   { name: "Fri", productivity: 90, focus: 85, quality: 95 },
-// ];
-
-// const individualGoals = [
-//   { name: 'Complete React Course', progress: 75 },
-//   { name: 'Contribute to Open Source', progress: 40 },
-//   { name: 'Build Portfolio Website', progress: 60 },
-//   { name: 'Learn GraphQL', progress: 25 },
-// ]
-
-const COLORS = ["#FF6B6B", "#4ECDC4", "#45B7D1", "#FFA07A", "#98D8C8"];
+// Register Chart.js components
+ChartJS.register(RadialLinearScale, ArcElement, ChartTooltip, ChartLegend, ChartDataLabels);
 
 export function StudentPerformance() {
   const [activeTab, setActiveTab] = useState("overview");
+  const [evalData, setEvalData] = useState<any>(null);
 
-  const CardWrapper: React.FC<{ children: React.ReactNode }> = ({
-    children,
-  }) => (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5 }}
-      className="w-full"
-    >
-      {children}
-    </motion.div>
-  );
+  useEffect(() => {
+    (async () => {
+      try {
+        const data = await getOnlyEvalMetrics();
+        setEvalData(data);
+      } catch (error) {
+        console.error("Error fetching evaluation metrics:", error);
+      }
+    })();
+  }, []);
+
+  // Derive interview performance data
+  const interviewPerformance =
+    evalData && evalData.interviewInstancesMarks
+      ? evalData.interviewInstancesMarks.map((item: any) => ({
+          name: item.Interview.name,
+          marks: item.marks,
+        }))
+      : [];
+
+  // Derive skills data from evaluationMetrics and normalize value
+  const skillsData =
+    evalData && evalData.evaluationMetrics && evalData.evaluationMetrics.length
+      ? evalData.evaluationMetrics[0].skills.map((skill: any) => ({
+          ...skill,
+          value: parseInt(skill.value)   // normalized
+        }))
+      : [];
+
+  // Derive attributes data (problem solving, code quality, debugging) and normalize values
+  const attributesData =
+    evalData && evalData.evaluationMetrics && evalData.evaluationMetrics.length
+      ? [
+          {
+            name: "Problem Solving",
+            value: parseFloat(evalData.evaluationMetrics[0].problem_solving) ,
+          },
+          {
+            name: "Code Quality",
+            value: parseFloat(evalData.evaluationMetrics[0].code_quality) ,
+          },
+          {
+            name: "Debugging",
+            value: parseFloat(evalData.evaluationMetrics[0].debugging) ,
+          },
+        ]
+      : [];
+
+  // Updated vibrant color palette with 11 distinct colors
+  const COLORS = [
+    '#C94C4C', // Warm Brick Red  
+    '#D3756B', // Muted Coral  
+    '#DC8850', // Deep Sunset Orange  
+    '#E3A857', // Rich Goldenrod  
+    '#A9845C', // Earthy Sandstone  
+    '#7D9D72', // Soft Olive Green  
+    '#5F8575', // Muted Teal  
+    '#4F759B', // Dusty Blue  
+    '#4464AD', // Royal Blue  
+    '#7158A1', // Deep Lavender  
+    '#9A4785', // Muted Plum  
+  ];
+  
+  
+  
 
   const renderActiveShape = (props: any) => {
     const {
@@ -119,9 +129,7 @@ export function StudentPerformance() {
 
     return (
       <g>
-        <text x={cx} y={cy} dy={8} textAnchor="middle" fill={fill}>
-          {payload.name}
-        </text>
+        {/* if u want skill name at the  center of the pie chart, add here   */}
         <Pie
           cx={cx}
           cy={cy}
@@ -143,7 +151,9 @@ export function StudentPerformance() {
           y={ey}
           textAnchor={textAnchor}
           fill="#333"
-        >{`Value ${value}`}</text>
+        >
+          {`Value ${value}`}
+        </text>
         <text
           x={ex + (cos >= 0 ? 1 : -1) * 12}
           y={ey}
@@ -151,18 +161,94 @@ export function StudentPerformance() {
           textAnchor={textAnchor}
           fill="#999"
         >
-          {`(${(percent * 100).toFixed(2)}%)`}
+          {`(${(percent).toFixed(2)}%)`}
         </text>
       </g>
     );
   };
 
+  // Updated polar area chart data
+  const polarAreaData = {
+    labels: skillsData.map((skill: any) => skill.skill),
+    datasets: [
+      {
+        data: skillsData.map((skill: any) => skill.value),
+        backgroundColor: COLORS.map(color => `${color}dd`), // Less transparency
+        borderColor: COLORS,
+        borderWidth: 1,
+      },
+    ],
+  };
+
+  // Updated polar area options with skill name labels
+  const polarAreaOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      datalabels: {
+        display: true,
+        color: '#000',
+        font: {
+          weight: 'bold' as const,
+          size: 13,
+        },
+        formatter: (value: number, context: any) => {
+          return context.chart.data.labels[context.dataIndex];
+        },
+        align: 'end' as const,
+        anchor: 'end' as const,
+        offset: 10,
+      },
+      legend: {
+        position: 'bottom' as const,
+        labels: {
+          font: {
+            size: 13,
+          },
+          padding: 20,
+          usePointStyle: true,
+          boxWidth: 10,
+        },
+      },
+      tooltip: {
+        callbacks: {
+          label: (context: any) => {
+            return `${context.raw}%`;
+          },
+        },
+      },
+    },
+    scales: {
+      r: {
+        beginAtZero: true,
+        max: 100,
+        ticks: {
+          display: false,
+        },
+        grid: {
+          color: 'rgba(0, 0, 0, 0.1)',
+        },
+      },
+    },
+  };
+
+  const CardWrapper: React.FC<{ children: React.ReactNode }> = ({
+    children,
+  }) => (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5 }}
+      className="w-full"
+    >
+      {children}
+    </motion.div>
+  );
+
   return (
     <TooltipProvider>
       <div className="container mx-auto p-4 bg-white min-h-screen pt-20">
-        {" "}
-        {/* Added pt-16 for navbar space */}
-        <h1 className="text-3xl font-bold text-center mb-8 text-gray-800">
+        <h1 className="text-3xl font-bold text-center mb-5 text-gray-800">
           Student Progress Dashboard
         </h1>
         <Tabs
@@ -170,206 +256,94 @@ export function StudentPerformance() {
           onValueChange={setActiveTab}
           className="space-y-4"
         >
-          <TabsList className={`grid w-full grid-cols-2`}>
-            <TabsTrigger value="overview">Overview</TabsTrigger>
-            <TabsTrigger value="skills">Performance & Proficiency</TabsTrigger>
-            {/* <TabsTrigger value="performance">Performance</TabsTrigger> */}
-            {/* <TabsTrigger value="goals">Goals</TabsTrigger> */}
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="overview">Interview Performance</TabsTrigger>
+            <TabsTrigger value="skills">Skills & Attributes</TabsTrigger>
           </TabsList>
           <TabsContent value="overview">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <CardWrapper>
-                <Card className="h-full ">
-                  <CardHeader>
-                    <CardTitle>Technical Knowledge</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <ResponsiveContainer width="100%" height={300}>
-                      <PieChart>
-                        <Pie
-                          data={technicalKnowledge}
-                          cx="50%"
-                          cy="50%"
-                          innerRadius={60}
-                          outerRadius={80}
-                          fill="#8884d8"
-                          paddingAngle={5}
-                          dataKey="value"
-                          activeShape={renderActiveShape}
-                        >
-                          {technicalKnowledge.map((_entry, index) => (
-                            <Cell
-                              key={`cell-${index}`}
-                              fill={COLORS[index % COLORS.length]}
-                            />
-                          ))}
-                        </Pie>
-                        <Tooltip />
-                        <Legend />
-                      </PieChart>
-                    </ResponsiveContainer>
-                  </CardContent>
-                </Card>
-              </CardWrapper>
+            <div className="grid grid-cols-1 md:grid-cols-1 gap-4">
               <CardWrapper>
                 <Card className="h-full">
                   <CardHeader>
-                    <CardTitle>Fundamental Knowledge</CardTitle>
+                    <CardTitle>Interview Marks</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <ResponsiveContainer width="100%" height={300}>
-                      <PieChart>
-                        <Pie
-                          data={fundamentalKnowledge}
-                          cx="50%"
-                          cy="50%"
-                          innerRadius={60}
-                          outerRadius={80}
-                          fill="#8884d8"
-                          paddingAngle={5}
-                          dataKey="value"
-                          activeShape={renderActiveShape}
-                        >
-                          {fundamentalKnowledge.map((_entry, index) => (
-                            <Cell
-                              key={`cell-${index}`}
-                              fill={COLORS[index % COLORS.length]}
-                            />
-                          ))}
-                        </Pie>
-                        <Tooltip />
-                        <Legend />
-                      </PieChart>
-                    </ResponsiveContainer>
+                    {evalData ? (
+                      <ResponsiveContainer width="100%" height={400}>
+                        <LineChart data={interviewPerformance}>
+                          <CartesianGrid strokeDasharray="3 3" />
+                          <XAxis dataKey="name" interval={0} />
+                          <YAxis />
+                          <Tooltip />
+                          <Legend />
+                          <Line
+                            type="monotone"
+                            dataKey="marks"
+                            stroke="#8884d8"
+                            activeDot={{ r: 8 }}
+                          />
+                        </LineChart>
+                      </ResponsiveContainer>
+                    ) : (
+                      <div className="flex justify-center items-center h-96">
+                        <Loader2 className="animate-spin" size={48} />
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
               </CardWrapper>
-              {/* <CardWrapper>
-                <Card className="h-full">
-                  <CardHeader>
-                    <CardTitle>Communication Skills</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <ResponsiveContainer width="100%" height={300}>
-                      <RadarChart cx="50%" cy="50%" outerRadius="80%" data={communicationSkills}>
-                        <PolarGrid />
-                        <PolarAngleAxis dataKey="skill" />
-                        <PolarRadiusAxis />
-                        <Radar name="Student" dataKey="score" stroke="#8884d8" fill="#8884d8" fillOpacity={0.6} />
-                      </RadarChart>
-                    </ResponsiveContainer>
-                  </CardContent>
-                </Card>
-              </CardWrapper> */}
             </div>
           </TabsContent>
           <TabsContent value="skills">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* <CardWrapper>
-                <Card className="h-full">
-                  <CardHeader>
-                    <CardTitle>Communication Skills</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <ResponsiveContainer width="100%" height={300}>
-                      <RadarChart cx="50%" cy="50%" outerRadius="80%" data={communicationSkills}>
-                        <PolarGrid />
-                        <PolarAngleAxis dataKey="skill" />
-                        <PolarRadiusAxis />
-                        <Radar name="Student" dataKey="score" stroke="#8884d8" fill="#8884d8" fillOpacity={0.6} />
-                      </RadarChart>
-                    </ResponsiveContainer>
-                  </CardContent>
-                </Card>
-              </CardWrapper> */}
+            <div className="flex flex-col gap-4">
               <CardWrapper>
-                <Card className="h-full">
+                <Card className="w-full">
                   <CardHeader>
-                    <CardTitle>Weekly Performance</CardTitle>
+                    <CardTitle>Skills Distribution</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <ResponsiveContainer width="100%" height={300}>
-                      <LineChart data={weeklyPerformance}>
-                        <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis dataKey="week" interval={0} />
-                        <YAxis />
-                        <Tooltip />
-                        <Legend />
-                        <Line
-                          type="monotone"
-                          dataKey="score"
-                          stroke="#8884d8"
-                          activeDot={{ r: 8 }}
+                    <div style={{ height: '700px', position: 'relative', padding: '20px' }}>
+                      {skillsData.length > 0 ? (
+                        <PolarArea 
+                          data={polarAreaData} 
+                          options={polarAreaOptions}
                         />
-                      </LineChart>
-                    </ResponsiveContainer>
+                      ) : (
+                        <div className="flex justify-center items-center h-full">
+                          <Loader2 className="animate-spin" size={48} />
+                        </div>
+                      )}
+                    </div>
                   </CardContent>
                 </Card>
               </CardWrapper>
+              
               <CardWrapper>
-                <Card className="h-full">
+                <Card className="w-full">
                   <CardHeader>
-                    <CardTitle>Proficiency Levels</CardTitle>
+                    <CardTitle>Performance Attributes</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <ResponsiveContainer width="100%" height={300}>
-                      <BarChart data={proficiencyLevels}>
-                        <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis dataKey="name" />
-                        <YAxis />
-                        <Tooltip />
-                        <Bar dataKey="value" fill="#8884d8" />
-                      </BarChart>
-                    </ResponsiveContainer>
+                    <div style={{ height: '400px' }}>
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart
+                          data={attributesData}
+                          margin={{ top: 20, bottom: 20, left: 20, right: 20 }}
+                        >
+                          <CartesianGrid strokeDasharray="3 3" />
+                          <XAxis dataKey="name" />
+                          <YAxis />
+                          <Tooltip />
+                          <Legend />
+                          <Bar dataKey="value" fill="#4ECDC4" />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
                   </CardContent>
                 </Card>
               </CardWrapper>
             </div>
           </TabsContent>
-
-          {/*
-          <CardWrapper>
-                <Card className="h-full">
-                  <CardHeader>
-                    <CardTitle>Weekly Performance</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <ResponsiveContainer width="100%" height={300}>
-                      <LineChart data={weeklyPerformance}>
-                        <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis dataKey="week" />
-                        <YAxis />
-                        <Tooltip />
-                        <Legend />
-                        <Line type="monotone" dataKey="score" stroke="#8884d8" activeDot={{ r: 8 }} />
-                      </LineChart>
-                    </ResponsiveContainer>
-                  </CardContent>
-                </Card>
-              </CardWrapper>
-          */}
-          {/* <TabsContent value="goals">
-            <CardWrapper>
-              <Card>
-                <CardHeader>
-                  <CardTitle>Individual Goals</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    {individualGoals.map((goal, index) => (
-                      <div key={index} className="space-y-2">
-                        <div className="flex justify-between">
-                          <span>{goal.name}</span>
-                          <span>{goal.progress}%</span>
-                        </div>
-                        <Progress value={goal.progress} className="w-full" />
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            </CardWrapper>
-          </TabsContent> */}
         </Tabs>
       </div>
     </TooltipProvider>

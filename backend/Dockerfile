@@ -51,6 +51,8 @@ RUN npm install
 COPY . .
 RUN npm run build
 
+RUN rm -rf node_modules
+
 # Stage 2: Run
 FROM node:18-alpine
 WORKDIR /app

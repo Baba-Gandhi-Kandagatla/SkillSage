@@ -1,4 +1,4 @@
-import { getAllColleges, addCollege, deleteCollege, getCollegeAdmins, addAdmin } from "@/Communicators/godCommunications";
+import { getAllColleges, addCollege, deleteCollege, getCollegeAdmins, addAdmin, deleteAdmin, updateAdmin } from "@/Communicators/godCommunications";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -16,6 +16,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
+  DialogClose,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -41,6 +42,8 @@ import {
 import { Edit, Plus, Trash, Eye, EyeOff } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import { toast } from "react-hot-toast";
+import { Checkbox } from "@/components/ui/checkbox"; // <- added for reset password checkbox
+import PasswordPrompt from './PasswordPrompt';
 
 // Types
 type College = {
@@ -54,10 +57,13 @@ type Admin = {
   roll_number: string;
   password: string;
   collegeId: number;
+  createdAt?: string;
 };
 
 // Main component
 const GodPage: React.FC = () => {
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+
   // State
   const [activeTab, setActiveTab] = useState<string>('addCollege');
   const [colleges, setColleges] = useState<College[]>([]);
@@ -71,26 +77,29 @@ const GodPage: React.FC = () => {
   const [editingAdmin, setEditingAdmin] = useState<Admin | null>(null);
   const [showCollegePassword, setShowCollegePassword] = useState(false);
   const [showEditingAdminPassword, setShowEditingAdminPassword] = useState(false);
+  const [resetPassword, setResetPassword] = useState<boolean>(false);
 
   // Effects
   useEffect(() => {
-    const fetchData = async () => {
-      setLoading(true);
-      try {
-        const data = await getAllColleges();
-        const mappedColleges = data.map((c: any) => ({
-          id: parseInt(c.id, 10),
-          name: c.name,
-        }));
-        setColleges(mappedColleges);
-      } catch (err) {
-        console.error(err);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchData();
-  }, []);
+    if (isAuthenticated) {
+      const fetchData = async () => {
+        setLoading(true);
+        try {
+          const data = await getAllColleges();
+          const mappedColleges = data.map((c: any) => ({
+            id: parseInt(c.id, 10),
+            name: c.name,
+          }));
+          setColleges(mappedColleges);
+        } catch (err) {
+          console.error(err);
+        } finally {
+          setLoading(false);
+        }
+      };
+      fetchData();
+    }
+  }, [isAuthenticated]);
 
   useEffect(() => {
     const savedTab = sessionStorage.getItem("activeTab");
@@ -156,18 +165,49 @@ const GodPage: React.FC = () => {
     }
   };
 
-  const handleDeleteAdmin = (adminId: number) => {
-    setAdmins(admins.filter(admin => admin.id !== adminId));
+  const handleDeleteAdmin = async (adminId: string) => {
+    setLoading(true);
+    try {
+      const response = await deleteAdmin(adminId);
+      if (response) {
+        toast.success("Admin deleted successfully!");
+        if (selectedCollege) {
+          await fetchAdminsForCollege(selectedCollege.id);
+        }
+      } else {
+        toast.error("Error deleting admin");
+      }
+    } catch (error) {
+      toast.error("An error occurred while deleting admin");
+      console.error(error);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleUpdateAdmin = () => {
+  const handleUpdateAdmin = async () => {
     if (!editingAdmin) return;
     setLoading(true);
-    setTimeout(() => {
-      setAdmins(admins.map(admin => admin.id === editingAdmin.id ? editingAdmin : admin));
-      setEditingAdmin(null);
+    try {
+      const payload = {
+        username: editingAdmin.username,
+        resetPassword
+      };
+      const response = await updateAdmin(editingAdmin.roll_number, payload);
+      if (response) {
+        toast.success("Admin updated successfully!");
+        setAdmins(admins.map(admin => admin.roll_number === editingAdmin.roll_number ? { ...admin, username: editingAdmin.username } : admin));
+        setEditingAdmin(null);
+        setResetPassword(false);
+      } else {
+        toast.error("Error updating admin");
+      }
+    } catch (error) {
+      toast.error("An error occurred");
+      console.error(error);
+    } finally {
       setLoading(false);
-    }, 2000);
+    }
   };
 
   const handleEditAdmin = (admin: Admin) => {
@@ -204,6 +244,7 @@ const GodPage: React.FC = () => {
         roll_number: a.roll_number || "",
         password: a.password || "",
         collegeId: parseInt(a.college_id, 10),
+        createdAt: a.createdAt,
       }));
       setAdmins(mappedAdmins);
     } catch (error) {
@@ -407,61 +448,10 @@ const GodPage: React.FC = () => {
                           <TableCell>{admin.roll_number}</TableCell>
                           <TableCell>
                             <div className="flex space-x-2">
-                              <Dialog>
-                                <DialogTrigger asChild>
-                                  <Button variant="outline" size="icon" onClick={() => handleEditAdmin(admin)}>
-                                    <Edit className="h-4 w-4" />
-                                  </Button>
-                                </DialogTrigger>
-                                <DialogContent>
-                                  <DialogHeader>
-                                    <DialogTitle>Edit Admin</DialogTitle>
-                                    <DialogDescription>Make changes to the admin account here.</DialogDescription>
-                                  </DialogHeader>
-                                  <div className="grid gap-4 py-4">
-                                    <div className="grid grid-cols-4 items-center gap-4">
-                                      <Label htmlFor="username" className="text-right">Username</Label>
-                                      <Input
-                                        id="username"
-                                        value={editingAdmin?.username || ''}
-                                        onChange={(e) => setEditingAdmin(prev => prev ? {...prev, username: e.target.value} : null)}
-                                        className="col-span-3"
-                                      />
-                                    </div>
-                                    <div className="grid grid-cols-4 items-center gap-4">
-                                      <Label htmlFor="rollNumber" className="text-right">Roll Number</Label>
-                                      <Input
-                                        id="rollNumber"
-                                        value={editingAdmin?.roll_number || ''}
-                                        onChange={(e) => setEditingAdmin(prev => prev ? {...prev, rollNumber: e.target.value} : null)}
-                                        className="col-span-3"
-                                      />
-                                    </div>
-                                    <div className="grid grid-cols-4 items-center gap-4">
-                                      <Label htmlFor="password" className="text-right">Password</Label>
-                                      <div className="flex items-center col-span-3">
-                                        <Input
-                                          id="password"
-                                          type={showEditingAdminPassword ? "text" : "password"}
-                                          value={editingAdmin?.password || ''}
-                                          onChange={(e) => setEditingAdmin(prev => prev ? {...prev, password: e.target.value} : null)}
-                                        />
-                                        <Button
-                                          type="button"
-                                          variant="ghost"
-                                          onClick={() => setShowEditingAdminPassword(!showEditingAdminPassword)}
-                                        >
-                                          {showEditingAdminPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                                        </Button>
-                                      </div>
-                                    </div>
-                                  </div>
-                                  <DialogFooter>
-                                    <Button onClick={handleUpdateAdmin}>Save changes</Button>
-                                  </DialogFooter>
-                                </DialogContent>
-                              </Dialog>
-                              <Button variant="destructive" size="icon" onClick={() => handleDeleteAdmin(admin.id)}>
+                              <Button variant="outline" size="icon" onClick={() => handleEditAdmin(admin)}>
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                              <Button variant="destructive" size="icon" onClick={() => handleDeleteAdmin(admin.roll_number)}>
                                 <Trash className="h-4 w-4" />
                               </Button>
                             </div>
@@ -501,30 +491,91 @@ const GodPage: React.FC = () => {
   );
 
   return (
-    <SidebarProvider>
-      <div className="flex h-screen w-full bg-gray-100">
-        {renderSidebar()}
-        <main className="flex-1 p-6 overflow-auto">
-          {activeTab === 'addCollege' && renderAddCollegeSection()}
-          {activeTab === 'addAdmin' && renderAddAdminSection()}
-        </main>
-        {loading && (
-          <Dialog open={loading}>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Processing</DialogTitle>
-                <DialogDescription>
-                  Please wait while we process your request...
-                </DialogDescription>
-              </DialogHeader>
-              <div className="flex justify-center items-center h-24">
-                <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-gray-900"></div>
+    <div className="w-full h-screen">
+      {isAuthenticated ? (
+        <SidebarProvider>
+          <div className="flex h-screen w-full bg-gray-100">
+            {renderSidebar()}
+            <main className="flex-1 p-6 overflow-auto">
+              {activeTab === 'addCollege' && renderAddCollegeSection()}
+              {activeTab === 'addAdmin' && renderAddAdminSection()}
+            </main>
+            {loading && (
+              <Dialog open={loading}>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Processing</DialogTitle>
+                    <DialogDescription>
+                      Please wait while we process your request...
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="flex justify-center items-center h-24">
+                    <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-gray-900"></div>
+                  </div>
+                </DialogContent>
+              </Dialog>
+            )}
+            {/* New overlay modal for editing admin */}
+            {editingAdmin && (
+              <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
+                <Card className="w-full max-w-md p-6">
+                  <div className="flex justify-between items-center mb-4">
+                    <CardTitle>Edit Admin</CardTitle>
+                    <Button variant="ghost" onClick={() => { setEditingAdmin(null); setResetPassword(false); }}>
+                      X
+                    </Button>
+                  </div>
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-4 items-center gap-4">
+                      <Label htmlFor="username" className="text-right">Username</Label>
+                      <Input
+                        id="username"
+                        value={editingAdmin?.username || ''}
+                        onChange={(e) => setEditingAdmin(prev => prev ? { ...prev, username: e.target.value } : null)}
+                        className="col-span-3"
+                      />
+                    </div>
+                    <div className="grid grid-cols-4 items-center gap-4">
+                      <Label htmlFor="rollNumber" className="text-right">Roll Number</Label>
+                      <Input
+                        id="rollNumber"
+                        value={editingAdmin?.roll_number || ''}
+                        disabled
+                        className="col-span-3"
+                      />
+                    </div>
+                    <div className="grid grid-cols-4 items-center gap-4">
+                      <Label className="text-right">Created At</Label>
+                      <div className="col-span-3 flex items-center">
+                        <span>{ editingAdmin?.createdAt ? new Date(editingAdmin.createdAt).toLocaleString() : 'N/A' }</span>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-4 items-center gap-4">
+                      <Label className="text-right">Reset Password</Label>
+                      <div className="col-span-3 flex items-center">
+                        <Checkbox
+                          checked={resetPassword}
+                          onCheckedChange={(checked) => setResetPassword(Boolean(checked))}
+                        />
+                        <span className="ml-2">Reset to college default</span>
+                      </div>
+                    </div>
+                    <div className="flex justify-end space-x-2 pt-4">
+                      <Button variant="outline" onClick={() => { setEditingAdmin(null); setResetPassword(false); }}>Cancel</Button>
+                      <Button onClick={handleUpdateAdmin}>Update</Button>
+                    </div>
+                  </div>
+                </Card>
               </div>
-            </DialogContent>
-          </Dialog>
-        )}
-      </div>
-    </SidebarProvider>
+            )}
+          </div>
+        </SidebarProvider>
+      ) : (
+        <div className="flex items-center justify-center w-full h-full">
+          <PasswordPrompt onPasswordSubmit={setIsAuthenticated} />
+        </div>
+      )}
+    </div>
   );
 };
 

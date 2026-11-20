@@ -69,10 +69,10 @@ export const InterviewSettings = () => {
 
   const handleSave = useCallback(async () => {
     const sum = totalQuestions + codingQuestionPercentage;
-    if(codingQuestionPercentage > totalQuestions){
-      toast.error("Coding questions should be less than total questions");
-      return;
-    }
+    // if(codingQuestionPercentage > totalQuestions){
+    //   toast.error("Coding questions should be less than total questions");
+    //   return;
+    // }
     if (sum < 5 || sum > 20) {
       // ...show error or toast..
       toast.error("Total questions and coding questions should be between 5 and 20");
@@ -117,11 +117,11 @@ export const InterviewSettings = () => {
           <CardContent>
             <div className="space-y-6">
               <div className="space-y-2">
-                <Label htmlFor="total-questions">Total Questions</Label>
+                <Label htmlFor="total-questions">Conceptual Questions</Label>
                 <div className="flex flex-col space-y-2 sm:flex-row sm:space-y-0 sm:items-center sm:space-x-4">
                   <Slider
                     id="total-questions"
-                    min={5}
+                    min={0}
                     max={20}
                     step={1}
                     value={[totalQuestions]}

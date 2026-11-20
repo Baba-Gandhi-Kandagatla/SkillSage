@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: frontend-config
+data:
+  env.js: |
+    window.env = {
+      API_URL: "/api/v1",
+      GOD_PAGE_PASSWORD :"123456"
+    };
+

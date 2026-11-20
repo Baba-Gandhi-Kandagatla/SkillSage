@@ -25,6 +25,9 @@ backend/.env.production.local
 backend/.cache
 backend/.yarn
 
+pocker-work.bat
 
 #PG data
 pgdata
+
+node_modules

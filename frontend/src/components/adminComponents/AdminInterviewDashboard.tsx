@@ -5,7 +5,8 @@ import {
   pauseInterview,
   startInterview,
 } from "@/Communicators/InterviewCommunications";
-import { getAllDepartments } from "@/Communicators/apiCommunications";
+import { getAllDepartments, getInterviewPreferences } from "@/Communicators/apiCommunications";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -30,6 +31,12 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { 
+  Tooltip, 
+  TooltipContent, 
+  TooltipProvider, 
+  TooltipTrigger 
+} from "@/components/ui/tooltip";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   AlertTriangle,
@@ -40,21 +47,81 @@ import {
   Search,
   Square,
   Trash2,
+  ArrowUp,
+  ArrowDown,
 } from "lucide-react";
 import { SetStateAction, useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { CreateInterviewCard } from "./CreateInterviewCard";
+import { Label } from "@/components/ui/label";
 
 let allDepartments: string[] = [];
+
+// Add helper function to parse topic string into tags
+const parseTopics = (topicString: string) =>
+  topicString.replace(/^"|"$/g, "").split(",").map(tag => tag.trim());
+
+// Add these new interfaces after the existing Interview interface
+interface DeleteConfirmDialogProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onConfirm: () => void;
+  interviewName: string;
+}
+
+function DeleteConfirmDialog({ isOpen, onClose, onConfirm, interviewName }: DeleteConfirmDialogProps) {
+  const [confirmText, setConfirmText] = useState("");
+  
+  return (
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle className="text-xl font-bold text-red-600">Confirm Deletion</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4">
+          <p className="text-gray-600">
+            Are you sure you want to delete the interview <span className="font-semibold">"{interviewName}"</span>? 
+            This action cannot be undone.
+          </p>
+          <div className="space-y-2">
+            <Label htmlFor="confirm-text">Type "delete" to confirm:</Label>
+            <Input
+              id="confirm-text"
+              value={confirmText}
+              onChange={(e) => setConfirmText(e.target.value)}
+              placeholder="delete"
+              className="w-full"
+            />
+          </div>
+        </div>
+        <DialogFooter className="flex space-x-2">
+          <Button variant="outline" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button
+            variant="destructive"
+            onClick={onConfirm}
+            disabled={confirmText !== "delete"}
+          >
+            Delete Interview
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
 
 export function InterviewDashboard() {
   const [interviews, setInterviews] = useState([] as Interview[]);
   const [searchTerm, setSearchTerm] = useState("");
-  const [sortBy, setSortBy] = useState<keyof Interview>("name");
+  const [sortField, setSortField] = useState<keyof Interview>("createdAt");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [currentPage, setCurrentPage] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const [dataLoaded, setDataLoaded] = useState(false);
+
   const [loadingStates, setLoadingStates] = useState<{
     [key: number]: { start?: boolean; end?: boolean; delete?: boolean };
   }>({});
@@ -69,13 +136,21 @@ export function InterviewDashboard() {
   } | null>(null);
   const navigate = useNavigate();
 
+  const [deleteDialog, setDeleteDialog] = useState<{ isOpen: boolean; interviewId: number | null; interviewName: string }>({
+    isOpen: false,
+    interviewId: null,
+    interviewName: ""
+  });
+
   useEffect(() => {
     const fetchInterviews = async () => {
       try {
         const data = await getAllInterviews();
         setInterviews(data);
+        setDataLoaded(true);
       } catch (error) {
         console.error("Error fetching interviews:", error);
+        setDataLoaded(true);
       }
     };
 
@@ -99,20 +174,39 @@ export function InterviewDashboard() {
     });
   }, []);
 
+
    const handleCreateInterview = async (newInterview: {
     name: string;
     subject: string;
     department: string;
     topic: string;
+    predefined_questions: string[];
   }) => {
     try {
+      const get_prefs = async()=>{
+        const response = await getInterviewPreferences();
+        console.log("got the response",response);
+        return response;
+      }
+
+      const {total_questions,no_of_coding_questions}= await get_prefs();
+      
       await createNewInterview({
         name: newInterview.name,
         subject: newInterview.subject,
         topic: newInterview.topic,
-        departments: newInterview.department.split(",").map(dep => dep.trim()), // Split and trim the department string
-        no_of_questions: 6, // or any appropriate default value
-        no_of_coding_questions: 6, // or any appropriate default value
+        departments: newInterview.department.split(",").map(dep => dep.trim()),
+        no_of_questions: total_questions,
+        no_of_coding_questions: no_of_coding_questions,
+        predefined_questions: newInterview.predefined_questions || [], // Add predefined questions
+      } as {
+        name: string;
+        subject: string;
+        topic: string;
+        departments: string[];
+        no_of_questions: number;
+        no_of_coding_questions: number;
+        predefined_questions: string[];
       });
       const updatedInterviews = await getAllInterviews();
       setInterviews(updatedInterviews);
@@ -158,10 +252,19 @@ export function InterviewDashboard() {
       setInterviews((interviews) =>
         interviews.filter((interview) => interview.id !== id)
       );
+      setDeleteDialog({ isOpen: false, interviewId: null, interviewName: "" });
     } catch (error) {
       console.error("Error deleting interview:", error);
     }
   }, []);
+
+  const initiateDelete = (interview: Interview) => {
+    setDeleteDialog({
+      isOpen: true,
+      interviewId: interview.id,
+      interviewName: interview.name
+    });
+  };
 
   const handleViewInterview = (interview: Interview) => {
     navigate("/admin/interview-student-list", { state: { interview } });
@@ -171,20 +274,23 @@ export function InterviewDashboard() {
     (interview) =>
       interview.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       interview.subject.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      interview.departments.some(department => department.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      // Fix: Ensure departments is an array
+      (Array.isArray(interview.departments) ? interview.departments : [interview.departments])
+        .some(department => department.toLowerCase().includes(searchTerm.toLowerCase())) ||
       interview.topic.toLowerCase().includes(searchTerm.toLowerCase()) ||
       interview.status.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const sortedInterviews = filteredInterviews.sort((a, b) => {
-    if (sortBy === "status") {
-      const statusOrder = { Scheduled: 1, "In Progress": 2, Completed: 3 };
-      return (
-        statusOrder[a.status as keyof typeof statusOrder] -
-        statusOrder[b.status as keyof typeof statusOrder]
-      );
+    let comp = 0;
+    if (sortField === "createdAt") {
+      comp = new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+    } else if (sortField === "departments") {
+      comp = a.departments[0]?.toLowerCase().localeCompare(b.departments[0]?.toLowerCase() || "");
+    } else {
+      comp = String(a[sortField]).localeCompare(String(b[sortField]));
     }
-    return String(a[sortBy]).localeCompare(String(b[sortBy]));
+    return sortOrder === "asc" ? comp : -comp;
   });
 
   const paginatedInterviews = sortedInterviews.slice(
@@ -214,12 +320,19 @@ export function InterviewDashboard() {
     }
   };
 
-  const handleSort = (
-    value: "id" | "name" | "subject" | "departments" | "topic" | "status"
-  ) => {
+  const handleSortFieldChange = (value: string) => {
     setIsLoading(true);
     setTimeout(() => {
-      setSortBy(value);
+      setSortField(value as keyof Interview);
+      setCurrentPage(1);
+      setIsLoading(false);
+    }, 500);
+  };
+
+  const handleSortOrderChange = (order: "asc" | "desc") => {
+    setIsLoading(true);
+    setTimeout(() => {
+      setSortOrder(order);
       setCurrentPage(1);
       setIsLoading(false);
     }, 500);
@@ -244,10 +357,57 @@ export function InterviewDashboard() {
     }
 
     const rows = paginatedInterviews.map((interview) => (
-      <TableRow key={interview.id}>
-        <TableCell className="text-center">{interview.name}</TableCell>
+      <TableRow key={interview.id}>        <TableCell className="text-center">{interview.name}</TableCell>
         <TableCell className="text-center">{interview.subject}</TableCell>
-        <TableCell className="text-center">{interview.topic}</TableCell>
+        {/* Updated topic cell: use Badge component with flex-wrap for proper stacking */}        <TableCell className="text-center p-2">
+          <div className="flex flex-wrap justify-center gap-1 max-w-full">
+            {(() => {
+              const topics = parseTopics(interview.topic);
+              const visibleTopics = topics.slice(0, 3); // Show only first 3 topics
+              const remainingCount = topics.length - visibleTopics.length;
+
+              return (
+                <TooltipProvider>
+                  <>
+                    {visibleTopics.map((tag, idx) => (
+                      <Badge key={idx} 
+                      variant="secondary" 
+                      className="bg-gray-100 font-medium text-gray-600 hover:bg-gray-200 text-xs whitespace-nowrap"
+                      >
+                        {tag.trim().replace(/^"|"$/g, '')}
+                      </Badge>
+                    ))}
+                    
+                    {remainingCount > 0 && (
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Badge 
+                            variant="outline" 
+                            className="bg-blue-50 text-blue-600 hover:bg-blue-100 text-xs cursor-pointer"
+                          >
+                            +{remainingCount} more
+                          </Badge>
+                        </TooltipTrigger>
+                        <TooltipContent className="bg-white text-gray-800 border border-gray-200 p-2 max-w-xs">
+                          <div className="flex flex-wrap gap-1">
+                            {topics.slice(3).map((tag, idx) => (
+                              <Badge key={idx} 
+                                variant="secondary" 
+                                className="bg-gray-100 font-medium text-gray-600 text-xs"
+                              >
+                                {tag.trim().replace(/^"|"$/g, '')}
+                              </Badge>
+                            ))}
+                          </div>
+                        </TooltipContent>
+                      </Tooltip>
+                    )}
+                  </>
+                </TooltipProvider>
+              );
+            })()}
+          </div>
+        </TableCell>
         <TableCell className="text-center">{interview.departments}</TableCell>
         <TableCell className="text-center align-middle">
           <span
@@ -295,7 +455,7 @@ export function InterviewDashboard() {
             <Button
               size="sm"
               variant="destructive"
-              onClick={() => handleDeleteInterview(interview.id)}
+              onClick={() => initiateDelete(interview)}
               disabled={loadingStates[interview.id]?.delete}
             >
               {loadingStates[interview.id]?.delete ? (
@@ -311,10 +471,7 @@ export function InterviewDashboard() {
                 handleViewInterview(interview);
                 setViewDialogOpen(true);
               }}
-              disabled={interview.status !== "active" && interview.status !== "Completed"}
-              className={
-                interview.status !== "active" && interview.status !== "Completed" ? "cursor-not-allowed" : ""
-              }
+              disabled={interview.status === "scheduled"}
             >
               View
             </Button>
@@ -335,6 +492,17 @@ export function InterviewDashboard() {
 
     return rows;
   };
+
+  if (!dataLoaded) {
+    return (
+      <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
+        <div className="bg-white p-6 rounded shadow-lg flex flex-col items-center">
+          <Loader2 className="h-10 w-10 animate-spin mb-4" />
+          <p>Loading Interviews</p>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="container mx-auto p-4 pt-16 space-y-4 font-inter">
@@ -365,11 +533,14 @@ export function InterviewDashboard() {
           </Button>
         </div>
         <div className="flex items-center gap-2 w-full sm:w-auto">
-          <Select onValueChange={handleSort} defaultValue={sortBy}>
+          {/* New sort label */}
+          <span className="font-medium">Sort:</span>
+          <Select onValueChange={handleSortFieldChange} defaultValue={sortField}>
             <SelectTrigger className="w-full sm:w-[180px]">
-              <SelectValue placeholder="Sort by" />
+              <SelectValue placeholder="Sort by field" />
             </SelectTrigger>
             <SelectContent>
+              <SelectItem value="createdAt">Created At</SelectItem>
               <SelectItem value="name">Name</SelectItem>
               <SelectItem value="subject">Subject</SelectItem>
               <SelectItem value="departments">Department</SelectItem>
@@ -377,6 +548,12 @@ export function InterviewDashboard() {
               <SelectItem value="status">Status</SelectItem>
             </SelectContent>
           </Select>
+          <Button onClick={() => handleSortOrderChange("asc")} variant={sortOrder === "asc" ? "default" : "outline"}>
+            <ArrowUp className="h-4 w-4" />
+          </Button>
+          <Button onClick={() => handleSortOrderChange("desc")} variant={sortOrder === "desc" ? "default" : "outline"}>
+            <ArrowDown className="h-4 w-4" />
+          </Button>
           <CreateInterviewCard onCreateInterview={handleCreateInterview} />
         </div>
       </div>
@@ -399,7 +576,7 @@ export function InterviewDashboard() {
                   interview={interview}
                   onStart={handleStartInterview}
                   onEnd={handleEndInterview}
-                  onDelete={handleDeleteInterview}
+                  onDelete={initiateDelete}
                   onView={handleViewInterview}
                   loadingStates={loadingStates[interview.id] || {}}
                 />
@@ -408,16 +585,15 @@ export function InterviewDashboard() {
           </AnimatePresence>
         </div>
       ) : (
-        <div className="rounded-lg overflow-hidden bg-white bg-opacity-20 backdrop-blur-lg backdrop-filter border border-gray-200 shadow-xl">
-          <Table>
+        <div className="rounded-lg overflow-hidden bg-white bg-opacity-20 backdrop-blur-lg backdrop-filter border border-gray-200 shadow-xl">          <Table className="table-fixed">
             <TableHeader>
               <TableRow>
-                <TableHead className="text-center">Name</TableHead>
-                <TableHead className="text-center">Subject</TableHead>
-                <TableHead className="text-center">Topic</TableHead>
-                <TableHead className="text-center">Department</TableHead>
-                <TableHead className="text-center">Status</TableHead>
-                <TableHead className="text-center">Actions</TableHead>
+                <TableHead className="text-center w-[15%]">Name</TableHead>
+                <TableHead className="text-center w-[15%]">Subject</TableHead>
+                <TableHead className="text-center w-[25%]">Topic</TableHead>
+                <TableHead className="text-center w-[15%]">Department</TableHead>
+                <TableHead className="text-center w-[10%]">Status</TableHead>
+                <TableHead className="text-center w-[20%]">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>{renderInterviewRows()}</TableBody>
@@ -479,6 +655,12 @@ export function InterviewDashboard() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      <DeleteConfirmDialog
+        isOpen={deleteDialog.isOpen}
+        onClose={() => setDeleteDialog({ isOpen: false, interviewId: null, interviewName: "" })}
+        onConfirm={() => deleteDialog.interviewId && handleDeleteInterview(deleteDialog.interviewId)}
+        interviewName={deleteDialog.interviewName}
+      />
     </div>
   );
 }
@@ -490,6 +672,8 @@ interface Interview {
   departments: string[]; // Changing department to departments and make it an array of strings
   topic: string;
   status: string;
+  createdAt: string; // added for timestamp sorting
+  predefined_questions?: string[]; // Add predefined_questions field to match backend model
 }
 
 function InterviewCard({
@@ -503,7 +687,7 @@ function InterviewCard({
   interview: Interview;
   onStart: (id: number) => void;
   onEnd: (id: number) => void;
-  onDelete: (id: number) => void;
+  onDelete: (interview: Interview) => void;
   onView: (interview: Interview) => void;
   loadingStates: { start?: boolean; end?: boolean; delete?: boolean };
 }) {
@@ -517,9 +701,54 @@ function InterviewCard({
       <p className="text-sm text-gray-600 dark:text-gray-300 mb-4">
         Subject: {interview.subject}
         <br />
-        Department: {interview.departments}
-        <br />
-        Topic: {interview.topic}
+        Department: {interview.departments}        <br />        Topic:
+        <div className="flex flex-wrap gap-1 mt-1">
+          {(() => {
+            const topics = parseTopics(interview.topic);
+            const visibleTopics = topics.slice(0, 2); // Show only first 2 topics for mobile
+            const remainingCount = topics.length - visibleTopics.length;
+
+            return (
+              <TooltipProvider>
+                <>
+                  {visibleTopics.map((tag, idx) => (
+                    <Badge key={idx} 
+                      variant="secondary" 
+                      className="bg-gray-100 font-medium text-gray-600 hover:bg-gray-200 text-xs"
+                    >
+                      {tag.trim().replace(/^"|"$/g, '')}
+                    </Badge>
+                  ))}
+                  
+                  {remainingCount > 0 && (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Badge 
+                          variant="outline" 
+                          className="bg-blue-50 text-blue-600 hover:bg-blue-100 text-xs cursor-pointer"
+                        >
+                          +{remainingCount} more
+                        </Badge>
+                      </TooltipTrigger>
+                      <TooltipContent className="bg-white text-gray-800 border border-gray-200 p-2 max-w-xs">
+                        <div className="flex flex-wrap gap-1">
+                          {topics.slice(2).map((tag, idx) => (
+                            <Badge key={idx} 
+                              variant="secondary" 
+                              className="bg-gray-100 font-medium text-gray-600 text-xs"
+                            >
+                              {tag.trim().replace(/^"|"$/g, '')}
+                            </Badge>
+                          ))}
+                        </div>
+                      </TooltipContent>
+                    </Tooltip>
+                  )}
+                </>
+              </TooltipProvider>
+            );
+          })()}
+        </div>
       </p>
       <div className="flex items-center justify-between mb-4">
         <span
@@ -536,7 +765,7 @@ function InterviewCard({
         <Button
           variant="destructive"
           size="sm"
-          onClick={() => onDelete(interview.id)}
+          onClick={() => onDelete(interview)}
           disabled={loadingStates.delete}
         >
           {loadingStates.delete ? (

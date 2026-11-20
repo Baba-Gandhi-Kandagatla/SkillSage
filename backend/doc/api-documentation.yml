@@ -1,58 +1,857 @@
 openapi: 3.0.0
 info:
   title: SkillSage API
-  description: API documentation for SkillSage.
+  description: API documentation for SkillSage backend services.
   version: 1.0.0
 servers:
   - url: http://localhost:5000/api/v1
 paths:
+  /login:
+    post:
+      summary: Login to the system
+      description: Authenticates users (students or admins) with roll number and password. Returns a JWT token as a signed cookie and user information.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - rollNumber
+                - password
+              properties:
+                rollNumber:
+                  type: string
+                  description: Roll number of the user
+                  example: "123456"
+                password:
+                  type: string
+                  description: User's password
+                  example: "password123"
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  rollNumber:
+                    type: string
+                    example: "123456"
+                  username:
+                    type: string
+                    example: "John Doe"
+                  role:
+                    type: string
+                    enum: [student, admin]
+                    example: "student"
+                  message:
+                    type: string
+                    example: "Login successful"
+        '401':
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Invalid credentials."
+        '404':
+          description: User not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "User not found."
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Internal server error."
+          
+  /logout:
+    get:
+      summary: Logout from the system
+      description: Clears the authentication cookie and ends the user session.
+      responses:
+        '200':
+          description: Logout successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Logout successful"
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Internal server error."
+          
+  /auth_status:
+    get:
+      summary: Check authentication status
+      description: Verifies if the user is currently authenticated by validating the JWT token. Returns user role and basic information.
+      responses:
+        '200':
+          description: User is authenticated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  rollNumber:
+                    type: string
+                    example: "123456"
+                  role:
+                    type: string
+                    enum: [student, admin]
+                    example: "student"
+                  username:
+                    type: string
+                    example: "John Doe"
+        '401':
+          description: User not authenticated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "User not found."
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Internal server error."
+          
   /student/profile:
     get:
       summary: Get student profile
+      description: Retrieves detailed student profile information including personal data, department, college, and evaluation metrics.
       responses:
         '200':
           description: Successfully retrieved profile
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  user:
+                    type: object
+                    properties:
+                      roll_number:
+                        type: string
+                      username:
+                        type: string
+                      year:
+                        type: integer
+                      semester:
+                        type: integer
+                      department_id:
+                        type: string
+                      section:
+                        type: string
+                      college_id:
+                        type: string
+                      Department:
+                        type: object
+                        properties:
+                          name:
+                            type: string
+                      College:
+                        type: object
+                        properties:
+                          name:
+                            type: string
+                      EvalMetric:
+                        type: object
+                  resume:
+                    type: string
         '404':
           description: Student not found
+        '500':
+          description: Server error
+          
+  /student/get_resume:
+    get:
+      summary: Get student resume
+      description: Returns the student's resume in base64 format along with the processed resume context.
+      responses:
+        '200':
+          description: Successfully retrieved resume
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  resume:
+                    type: string
+                    format: base64
+                    description: Base64 encoded resume file
+                  resume_context:
+                    type: string
+                    description: Processed resume text
+        '404':
+          description: Resume not found
+        '500':
+          description: Server error
+          
   /student/upload_resume:
     post:
       summary: Upload a resume
+      description: Accepts PDF or DOC/DOCX files, extracts text content, generates a summary, evaluates skills, and stores both the file and extracted information.
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - resume
+              properties:
+                resume:
+                  type: string
+                  format: binary
+                  description: Resume file (PDF, DOC, or DOCX)
       responses:
         '200':
           description: Successfully uploaded resume
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Resume uploaded and saved successfully."
         '400':
           description: No file uploaded
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "No file uploaded."
         '500':
           description: Server error
-  /admin/add_student:
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Internal server error."
+          
+  /student/change_password:
     post:
-      summary: Add a new student to the system
+      summary: Change student password
+      description: Allows students to change their password by providing old and new passwords. Verifies old password before updating.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - oldPassword
+                - newPassword
+              properties:
+                oldPassword:
+                  type: string
+                  example: "oldPass123"
+                newPassword:
+                  type: string
+                  example: "newPass456"
       responses:
-        '201':
-          description: Student added
-        '409':
-          description: Student already exists
+        '200':
+          description: Password changed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Password changed successfully."
+        '401':
+          description: Invalid old password
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Invalid old password."
+        '404':
+          description: Student not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "User not found."
         '500':
           description: Server error
-  /admin/update_student/{rollnumber}:
-    put:
-      summary: Update student details
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Internal server error."
+          
+  /student/get_interviews:
+    get:
+      summary: Get all interviews for student
+      description: Returns all interviews available to the student based on their department, including active, scheduled, and paused interviews sorted by status.
+      responses:
+        '200':
+          description: Successfully retrieved interviews
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  interviews:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                        name:
+                          type: string
+                        subject:
+                          type: string
+                        topic:
+                          type: string
+                        status:
+                          type: string
+                        no_of_questions:
+                          type: integer
+                        no_of_coding_questions:
+                          type: integer
+                        InterviewInstances:
+                          type: array
+                          items:
+                            type: object
+        '500':
+          description: Server error
+          
+  /student/get_specific_interviews:
+    get:
+      summary: Get specific interviews for student
+      description: Returns only the submitted interviews for a student, allowing them to view past performance.
+      responses:
+        '200':
+          description: Successfully retrieved interviews
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  interviews:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                        name:
+                          type: string
+                        subject:
+                          type: string
+                        topic:
+                          type: string
+                        status:
+                          type: string
+                        InterviewInstances:
+                          type: array
+                          items:
+                            type: object
+        '500':
+          description: Server error
+          
+  /student/get_interview_result/{id}:
+    get:
+      summary: Get interview result
+      description: Retrieves detailed results of a completed interview including all question exchanges and final feedback.
       parameters:
         - in: path
-          name: rollnumber
+          name: id
           required: true
           schema:
             type: string
+          description: ID of the interview
       responses:
         '200':
-          description: Student updated successfully
+          description: Successfully retrieved interview result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  interviewData:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                      student_roll:
+                        type: string
+                      interview_ref:
+                        type: string
+                      marks:
+                        type: number
+                      feedback:
+                        type: object
+                      status:
+                        type: string
+                  InterviewExchange:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                        interview_ins_ref:
+                          type: string
+                        question:
+                          type: string
+                        code:
+                          type: string
+                        response:
+                          type: string
+                        feedback:
+                          type: string
+                        marks:
+                          type: number
+        '404':
+          description: Interview not found
+        '500':
+          description: Server error
+          
+  /student/submit_feedback:
+    post:
+      summary: Submit feedback for an interview
+      description: Allows students to submit feedback about their interview experience for system improvement.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - interviewId
+                - feedbackText
+              properties:
+                interviewId:
+                  type: string
+                  description: ID of the interview
+                  example: "12345"
+                feedbackText:
+                  type: string
+                  description: Feedback from student
+                  example: "The interview questions were well structured and relevant."
+      responses:
+        '200':
+          description: Feedback submitted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Feedback submitted successfully."
+        '404':
+          description: Student not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "User not found."
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Internal server error."
+          
+  /student/get_feedback:
+    get:
+      summary: Get feedback for student
+      description: Retrieves all feedback submitted by the student across interviews.
+      responses:
+        '200':
+          description: Successfully retrieved feedback
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  feedback:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                        roll_number:
+                          type: string
+                        interview_id:
+                          type: string
+                        feedback_text:
+                          type: string
+                        createdAt:
+                          type: string
+                          format: date-time
         '404':
           description: Student not found
         '500':
+          description: Server error
+          
+  /student/get_attendance:
+    get:
+      summary: Get student attendance
+      description: Provides attendance statistics showing the ratio of interviews attended vs total available interviews.
+      responses:
+        '200':
+          description: Successfully retrieved attendance
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  attendance:
+                    type: number
+                    description: Ratio of interviews attended (0-1)
+        '404':
+          description: Student not found
+        '500':
+          description: Server error
+          
+  /student/get_marks:
+    get:
+      summary: Get student marks by interview
+      description: Retrieves marks obtained by the student in all interviews they have participated in.
+      responses:
+        '200':
+          description: Successfully retrieved marks
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    marks:
+                      type: number
+                    interview_ref:
+                      type: string
+                    Interview:
+                      type: object
+                      properties:
+                        name:
+                          type: string
+        '404':
+          description: Student not found
+        '500':
+          description: Server error
+          
+  /student/get_eval_metrics:
+    get:
+      summary: Get evaluation metrics for student
+      description: Returns comprehensive evaluation metrics including skill assessments, problem-solving abilities, and interview performance data.
+      responses:
+        '200':
+          description: Successfully retrieved evaluation metrics
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  evaluationMetrics:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        roll_number:
+                          type: string
+                        problem_solving:
+                          type: number
+                        code_quality:
+                          type: number
+                        debugging:
+                          type: number
+                        count:
+                          type: integer
+                        skills:
+                          type: object
+                  interviewInstancesMarks:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        marks:
+                          type: number
+                        interview_ref:
+                          type: string
+                        Interview:
+                          type: object
+                          properties:
+                            name:
+                              type: string
+        '404':
+          description: Student not found
+        '500':
+          description: Server error
+          
+  /admin/add_students:
+    post:
+      summary: Add multiple students via file upload
+      description: Bulk imports students from an Excel file, processes student data, assigns departments, and creates accounts with default passwords.
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - studentsFile
+                - year
+              properties:
+                studentsFile:
+                  type: string
+                  format: binary
+                  description: Excel file with student data (columns should include rollnumber, name, department)
+                year:
+                  type: string
+                  description: Year of admission
+                  example: "2023"
+      responses:
+        '201':
+          description: Students added successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Students added successfully."
+        '400':
+          description: Invalid file format
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Invalid file format."
+        '404':
+          description: Admin not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Admin not found."
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Internal server error."
+          
+  /admin/getDefaultPassword:
+    get:
+      summary: Get default password for the college
+      description: Retrieves the default password set for new student accounts in the admin's college.
+      responses:
+        '200':
+          description: Successfully retrieved default password
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  defaultPassword:
+                    type: string
+        '500':
           description: Internal server error
-  /admin/delete_student/{rollnumber}:
+          
+  /admin/setDefaultPassword:
+    post:
+      summary: Set default password for the college
+      description: Updates the default password for the college and resets all student passwords to this new default.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - newPassword
+              properties:
+                newPassword:
+                  type: string
+                  description: New default password
+                  example: "newDefaultPass123"
+      responses:
+        '200':
+          description: Default password set successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Password updated successfully."
+        '404':
+          description: Admin or college not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Admin not found."
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Internal server error."
+          
+  /admin/add_student:
+    post:
+      summary: Add a new student to the system
+      description: Creates a single student account with specified details including name, roll number, year, and department.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - rollnumber
+                - name
+                - year
+                - department_name
+              properties:
+                rollnumber:
+                  type: string
+                  example: "ST123456"
+                name:
+                  type: string
+                  example: "Jane Smith"
+                year:
+                  type: integer
+                  example: 2
+                department_name:
+                  type: string
+                  example: "Computer Science"
+      responses:
+        '201':
+          description: Student added successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Student added successfully."
+        '409':
+          description: Student already exists
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Student already exists."
+        '404':
+          description: Department not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Department not found."
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Internal server error."
+          
+  /admin/students/{rollnumber}:
     delete:
       summary: Delete a student
+      description: Removes a student account from the system using their roll number.
       parameters:
         - in: path
           name: rollnumber
@@ -62,161 +861,182 @@ paths:
       responses:
         '200':
           description: Student deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
         '404':
           description: Student not found
         '500':
           description: Internal server error
-  /admin/create_interview:
-    post:
-      summary: Create a new interview
-      responses:
-        '201':
-          description: Interview created successfully
-        '400':
-          description: Invalid input
-        '500':
-          description: Internal server error
-  /admin/get_interviews:
-    get:
-      summary: Get all interviews
-      responses:
-        '200':
-          description: Successfully retrieved interviews
-        '500':
-          description: Internal server error
-  /admin/update_interview_status/{id}:
+          
+  /admin/update_student/{rollnumber}:
     put:
-      summary: Update interview status
-      parameters:
-        - in: path
-          name: id
-          required: true
-          schema:
-            type: string
-      responses:
-        '200':
-          description: Interview status updated successfully
-        '404':
-          description: Interview not found
-        '500':
-          description: Internal server error
-  /admin/start_interview/{id}:
-    put:
-      summary: Start an interview
-      parameters:
-        - in: path
-          name: id
-          required: true
-          schema:
-            type: string
-      responses:
-        '200':
-          description: Interview started successfully
-        '404':
-          description: Interview not found
-        '500':
-          description: Internal server error
-  /admin/pause_interview/{id}:
-    put:
-      summary: Pause an interview
-      parameters:
-        - in: path
-          name: id
-          required: true
-          schema:
-            type: string
-      responses:
-        '200':
-          description: Interview paused successfully
-        '404':
-          description: Interview not found
-        '500':
-          description: Internal server error
-  /admin/delete_interview/{id}:
-    delete:
-      summary: Delete an interview
-      parameters:
-        - in: path
-          name: id
-          required: true
-          schema:
-            type: string
-      responses:
-        '200':
-          description: Interview deleted successfully
-        '404':
-          description: Interview not found
-        '500':
-          description: Internal server error
-  /admin/get_attendence/{id}:
-    get:
-      summary: Get interview attendance
-      parameters:
-        - in: path
-          name: id
-          required: true
-          schema:
-            type: string
-      responses:
-        '200':
-          description: Successfully retrieved attendance
-        '404':
-          description: Interview not found
-        '500':
-          description: Internal server error
-  /admin/get_student_profile/{rollnumber}:
-    get:
-      summary: Get student profile
+      summary: Update student details
+      description: Modifies student information such as name, year, or department.
       parameters:
         - in: path
           name: rollnumber
           required: true
           schema:
             type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                username:
+                  type: string
+                year:
+                  type: integer
+                semester:
+                  type: integer
+                department_id:
+                  type: string
+                section:
+                  type: string
       responses:
         '200':
-          description: Successfully retrieved student profile
+          description: Student updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
         '404':
           description: Student not found
         '500':
           description: Internal server error
-  /admin/reset_student_password/{rollnumber}:
-    post:
-      summary: Reset student password
+          
+  /admin/get_department/{id}:
+    get:
+      summary: Get department details
+      description: Retrieves information about a specific department by its ID.
       parameters:
         - in: path
-          name: rollnumber
+          name: id
           required: true
           schema:
             type: string
       responses:
         '200':
-          description: Student password reset successfully
+          description: Successfully retrieved department
+          content:
+            application/json:
+              schema:
+                type: string
+                description: Department name
         '404':
-          description: Student not found
+          description: Department not found
         '500':
           description: Internal server error
-  /admin/get_all_students:
+          
+  /admin/get_students:
     get:
       summary: Get all students
+      description: Returns a list of all students in the admin's college, with optional filtering by year.
+      parameters:
+        - in: query
+          name: year
+          required: false
+          schema:
+            type: integer
+          description: Filter students by academic year
       responses:
         '200':
           description: Successfully retrieved students
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    roll_number:
+                      type: string
+                    username:
+                      type: string
+                    year:
+                      type: integer
+                    department_id:
+                      type: string
         '500':
           description: Internal server error
+          
   /admin/add_department:
     post:
       summary: Add a new department
+      description: Creates a new department in the admin's college with the specified name.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+              properties:
+                name:
+                  type: string
+                  description: Department name
+                  example: "Electrical Engineering"
       responses:
         '201':
           description: Department added successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                    example: "5"
+                  name:
+                    type: string
+                    example: "Electrical Engineering"
+                  college_id:
+                    type: string
+                    example: "3"
+                  createdAt:
+                    type: string
+                    format: date-time
+                    example: "2023-05-20T14:32:21.123Z"
+                  updatedAt:
+                    type: string
+                    format: date-time
+                    example: "2023-05-20T14:32:21.123Z"
         '409':
           description: Department already exists
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Department already exists."
         '500':
           description: Internal server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Internal server error."
+          
   /admin/delete_department/{department_name}:
     delete:
       summary: Delete a department
+      description: Removes a department and optionally all students belonging to that department.
       parameters:
         - in: path
           name: department_name
@@ -226,155 +1046,1413 @@ paths:
       responses:
         '200':
           description: Department deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
         '404':
           description: Department not found
         '500':
           description: Internal server error
+          
   /admin/get_all_departments:
     get:
       summary: Get all departments
+      description: Lists all departments in the admin's college.
       responses:
         '200':
           description: Successfully retrieved departments
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: string
+                    name:
+                      type: string
+                    college_id:
+                      type: string
+                    createdAt:
+                      type: string
+                      format: date-time
+                    updatedAt:
+                      type: string
+                      format: date-time
         '500':
           description: Internal server error
-  /admin/change_password:
+          
+  /admin/create_interview:
     post:
-      summary: Change admin password
+      summary: Create a new interview
+      description: Creates a new interview with specified name, subject, topic, number of questions, and assigns it to one or more departments.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+                - subject
+                - topic
+                - departments
+              properties:
+                name:
+                  type: string
+                  description: Interview name
+                  example: "React Advanced Interview"
+                subject:
+                  type: string
+                  description: Subject of the interview
+                  example: "Web Development"
+                topic:
+                  type: array
+                  items:
+                    type: string
+                  description: Topics covered in the interview
+                  example: ["React Hooks", "State Management", "Component Lifecycle"]
+                no_of_questions:
+                  type: integer
+                  description: Number of regular questions
+                  default: 5
+                  example: 5
+                no_of_coding_questions:
+                  type: integer
+                  description: Number of coding questions
+                  default: 1
+                  example: 2
+                departments:
+                  type: array
+                  items:
+                    type: string
+                  description: Department names to assign interview to
+                  example: ["Computer Science", "Information Technology"]
       responses:
-        '200':
-          description: Password changed successfully
-        '401':
-          description: Invalid old password
+        '201':
+          description: Interview created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Interview created successfully."
+        '400':
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Invalid input: Missing or incorrect fields."
+        '404':
+          description: Department not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "One or more departments not found."
         '500':
           description: Internal server error
-  /admin/getDefaultPassword:
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Internal server error."
+          
+  /admin/get_interviews:
     get:
-      summary: Get default password
+      summary: Get all interviews
+      description: Retrieves all interviews created in the admin's college along with their assigned departments.
       responses:
         '200':
-          description: Successfully retrieved default password
+          description: Successfully retrieved interviews
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: string
+                    collage_id:
+                      type: string
+                    name:
+                      type: string
+                    subject:
+                      type: string
+                    topic:
+                      type: string
+                    no_of_questions:
+                      type: integer
+                    no_of_coding_questions:
+                      type: integer
+                    status:
+                      type: string
+                    departments:
+                      type: array
+                      items:
+                        type: object
+                        properties:
+                          id:
+                            type: string
+                          name:
+                            type: string
         '500':
           description: Internal server error
-  /admin/setDefaultPassword:
-    post:
-      summary: Set default password
-      responses:
-        '200':
-          description: Default password set successfully
-        '500':
-          description: Internal server error
-  /admin/setpreference:
+          
+  /admin/update_interview_status/{id}:
     put:
-      summary: Set admin preferences
-      responses:
-        '200':
-          description: Preferences updated successfully
-        '500':
-          description: Internal server error
-  /admin/getpreference:
-    get:
-      summary: Get admin preferences
-      responses:
-        '200':
-          description: Successfully retrieved preferences
-        '500':
-          description: Internal server error
-  /interview/start_interview/{interview_id}:
-    get:
-      summary: Start an interview
+      summary: Update interview status
+      description: Toggles the status of an interview between active and paused.
       parameters:
         - in: path
-          name: interview_id
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Interview status updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  newStatus:
+                    type: string
+        '404':
+          description: Interview not found
+        '500':
+          description: Internal server error
+          
+  /admin/start_interview/{id}:
+    put:
+      summary: Start an interview
+      description: Sets the status of an interview to 'active', allowing students to participate.
+      parameters:
+        - in: path
+          name: id
           required: true
           schema:
             type: string
       responses:
         '200':
           description: Interview started successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
         '404':
           description: Interview not found
         '500':
           description: Internal server error
-  /interview/next/{interview_id}:
-    post:
-      summary: Get next interview question
+          
+  /admin/pause_interview/{id}:
+    put:
+      summary: Pause an interview
+      description: Sets the status of an interview to 'paused', preventing new students from starting.
       parameters:
         - in: path
-          name: interview_id
+          name: id
           required: true
           schema:
             type: string
       responses:
         '200':
-          description: Successfully retrieved next question
+          description: Interview paused successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
         '404':
           description: Interview not found
         '500':
           description: Internal server error
-  /interview/submit/{interview_id}:
+          
+  /admin/delete_interview/{id}:
+    delete:
+      summary: Delete an interview
+      description: Removes an interview and all its associated data from the system.
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Interview deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+        '404':
+          description: Interview not found
+        '500':
+          description: Internal server error
+          
+  /admin/get_attendence/{id}:
     get:
-      summary: Submit interview
+      summary: Get interview attendance
+      description: Provides detailed attendance information for a specific interview, including participant list, submission status, and violations.
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successfully retrieved attendance
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  activeData:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        rollnumber:
+                          type: string
+                        username:
+                          type: string
+                        submitted:
+                          type: string
+                        total_marks:
+                          type: number
+                        violations:
+                          type: integer
+                        ip:
+                          type: string
+                        ip_change:
+                          type: boolean
+                  numberOfStudents:
+                    type: integer
+                  numberOfSubmitted:
+                    type: integer
+        '404':
+          description: Interview not found
+        '500':
+          description: Internal server error
+          
+  /admin/change_password:
+    post:
+      summary: Change admin password
+      description: Allows admins to update their password by providing old and new passwords.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - oldPassword
+                - newPassword
+              properties:
+                oldPassword:
+                  type: string
+                  example: "currentPassword123"
+                newPassword:
+                  type: string
+                  example: "newSecurePassword456"
+      responses:
+        '200':
+          description: Password changed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Password changed successfully."
+        '401':
+          description: Invalid old password
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Invalid old password."
+        '404':
+          description: User not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "User not found."
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Internal server error."
+          
+  /admin/profile:
+    get:
+      summary: Get admin profile
+      description: Retrieves the admin's profile information.
+      responses:
+        '200':
+          description: Successfully retrieved profile
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  user:
+                    type: object
+                    properties:
+                      roll_number:
+                        type: string
+                      username:
+                        type: string
+                      college_id:
+                        type: string
+                      preferences:
+                        type: object
+        '401':
+          description: User not found
+        '500':
+          description: Internal server error
+          
+  /admin/get_student_view_student/{rollnumber}:
+    get:
+      summary: View student basic details
+      description: Returns basic information about a specific student without sensitive data.
+      parameters:
+        - in: path
+          name: rollnumber
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successfully retrieved student
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  roll_number:
+                    type: string
+                  username:
+                    type: string
+                  year:
+                    type: integer
+                  semester:
+                    type: integer
+                  department_id:
+                    type: string
+                  section:
+                    type: string
+                  college_id:
+                    type: string
+        '404':
+          description: Student not found
+        '500':
+          description: Internal server error
+          
+  /admin/get_student_profile/{rollnumber}:
+    get:
+      summary: Get student profile details
+      description: Retrieves detailed profile information for a specific student including evaluation metrics and resume data.
+      parameters:
+        - in: path
+          name: rollnumber
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successfully retrieved student profile
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  user:
+                    type: object
+                    properties:
+                      roll_number:
+                        type: string
+                      username:
+                        type: string
+                      year:
+                        type: integer
+                      department_id:
+                        type: string
+                      InterviewInstances:
+                        type: array
+                        items:
+                          type: object
+                      EvalMetric:
+                        type: object
+                  resume:
+                    type: string
+                    description: Resume context
+        '404':
+          description: Student not found
+        '500':
+          description: Internal server error
+          
+  /admin/delete_all_students/:
+    delete:
+      summary: Delete all students
+      description: Removes all students of a specified year from the admin's college.
+      parameters:
+        - in: query
+          name: year
+          required: true
+          schema:
+            type: integer
+          description: Academic year
+      responses:
+        '200':
+          description: All students deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+        '404':
+          description: Admin not found
+        '500':
+          description: Internal server error
+          
+  /admin/reset_student_password/{rollnumber}:
+    post:
+      summary: Reset student password
+      description: Resets a student's password to the college default password.
+      parameters:
+        - in: path
+          name: rollnumber
+          required: true
+          schema:
+            type: string
+          description: Student roll number
+          example: "ST123456"
+      responses:
+        '200':
+          description: Student password reset successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Student password reset successfully."
+        '404':
+          description: Student not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Student not found."
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Internal server error."
+          
+  /admin/setpreference:
+    put:
+      summary: Set admin preferences
+      description: Updates the admin's interface and operational preferences.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                theme:
+                  type: string
+                  example: "dark"
+                notifications:
+                  type: boolean
+                  example: true
+                dashboard:
+                  type: object
+                  properties:
+                    widgets:
+                      type: array
+                      items:
+                        type: string
+                      example: ["students", "interviews", "departments"]
+      responses:
+        '200':
+          description: Preferences updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Preferences updated successfully."
+        '404':
+          description: Admin not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Admin not found."
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Internal server error."
+          
+  /admin/getpreference:
+    get:
+      summary: Get admin preferences
+      description: Retrieves the admin's current preference settings.
+      responses:
+        '200':
+          description: Successfully retrieved preferences
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  theme:
+                    type: string
+                  notifications:
+                    type: boolean
+        '404':
+          description: Admin not found
+        '500':
+          description: Internal server error
+          
+  /admin/getInterviewResult/{id}/{rollNumber}:
+    get:
+      summary: Get interview result for a student
+      description: Retrieves detailed results of a specific interview for a particular student including all question exchanges and feedback.
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+        - in: path
+          name: rollNumber
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successfully retrieved interview result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  interviewData:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                      student_roll:
+                        type: string
+                      interview_ref:
+                        type: string
+                      marks:
+                        type: number
+                      feedback:
+                        type: object
+                      status:
+                        type: string
+                  InterviewExchange:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                        interview_ins_ref:
+                          type: string
+                        question:
+                          type: string
+                        code:
+                          type: string
+                        response:
+                          type: string
+                        feedback:
+                          type: string
+                        marks:
+                          type: number
+        '404':
+          description: Interview or student not found
+        '500':
+          description: Internal server error
+          
+  /admin/getStudentMarksByInterview/{rollNumber}:
+    get:
+      summary: Get student marks by interview
+      description: Returns marks obtained by a specific student across all interviews they've participated in.
+      parameters:
+        - in: path
+          name: rollNumber
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successfully retrieved marks
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    marks:
+                      type: number
+                    interview_ref:
+                      type: string
+                    Interview:
+                      type: object
+                      properties:
+                        name:
+                          type: string
+        '404':
+          description: Student not found
+        '500':
+          description: Internal server error
+          
+  /admin/getStudentAttendance/{rollNumber}:
+    get:
+      summary: Get student attendance
+      description: Provides attendance statistics for a specific student showing interviews attended vs total available.
+      parameters:
+        - in: path
+          name: rollNumber
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successfully retrieved attendance
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  attendance:
+                    type: number
+                    description: Ratio of interviews attended (0-1)
+        '404':
+          description: Student not found
+        '500':
+          description: Internal server error
+          
+  /admin/getInterviewCSV/{id}:
+    get:
+      summary: Get interview results as CSV
+      description: Generates a downloadable CSV file containing all student results for a specific interview.
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successfully generated CSV
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  csv:
+                    type: string
+                    format: base64
+        '404':
+          description: Interview not found
+        '500':
+          description: Internal server error
+          
+  /admin/evalMetrics/{rollNumber}:
+    get:
+      summary: Get evaluation metrics for a student
+      description: Returns detailed evaluation metrics for a specific student including skill assessments and performance indicators.
+      parameters:
+        - in: path
+          name: rollNumber
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successfully retrieved metrics
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  evaluationMetrics:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        roll_number:
+                          type: string
+                        problem_solving:
+                          type: number
+                        code_quality:
+                          type: number
+                        debugging:
+                          type: number
+                        count:
+                          type: integer
+                        skills:
+                          type: object
+                  interviewInstancesMarks:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        marks:
+                          type: number
+                        interview_ref:
+                          type: string
+                        Interview:
+                          type: object
+                          properties:
+                            name:
+                              type: string
+        '404':
+          description: Student not found
+        '500':
+          description: Internal server error
+          
+  /admin/getStudAttendedInter/{rollNumber}:
+    get:
+      summary: Get interviews attended by a student
+      description: Lists all interviews a specific student has participated in with status and performance details.
+      parameters:
+        - in: path
+          name: rollNumber
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successfully retrieved attended interviews
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: string
+                    name:
+                      type: string
+                    subject:
+                      type: string
+                    topic:
+                      type: string
+                    status:
+                      type: string
+                    InterviewInstances:
+                      type: array
+                      items:
+                        type: object
+        '404':
+          description: Student not found
+        '500':
+          description: Internal server error
+          
+  /admin/getStudentByDep/{depID}:
+    get:
+      summary: Get students by department
+      description: Returns a list of students belonging to a specific department.
+      parameters:
+        - in: path
+          name: depID
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successfully retrieved students
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    roll_number:
+                      type: string
+                    username:
+                      type: string
+                    year:
+                      type: integer
+                    department_id:
+                      type: string
+        '500':
+          description: Internal server error
+          
+  /admin/getViewStudentDetails/{rollNumber}:
+    get:
+      summary: Get detailed student information
+      description: Provides comprehensive information about a student including profile, evaluation metrics, and interview history.
+      parameters:
+        - in: path
+          name: rollNumber
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successfully retrieved student details
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  user:
+                    type: object
+                    properties:
+                      roll_number:
+                        type: string
+                      username:
+                        type: string
+                      year:
+                        type: integer
+                      department_id:
+                        type: string
+                      InterviewInstances:
+                        type: array
+                        items:
+                          type: object
+                      EvalMetric:
+                        type: object
+                  resume:
+                    type: string
+                    description: Resume context
+        '404':
+          description: Student not found
+        '500':
+          description: Internal server error
+          
+  /admin/getDashboardData:
+    get:
+      summary: Get dashboard data
+      description: Retrieves statistical data for the admin dashboard including counts of students, interviews, departments, and more.
+      responses:
+        '200':
+          description: Successfully retrieved dashboard data
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  studentsCount:
+                    type: integer
+                  interviewsCount:
+                    type: integer
+                  departmentsCount:
+                    type: integer
+                  activeInterviewsCount:
+                    type: integer
+                  pausedInterviewsCount:
+                    type: integer
+        '404':
+          description: Admin not found
+        '500':
+          description: Internal server error
+          
+  /admin/getStudentsByDepartment/{department_id}:
+    get:
+      summary: Get students by department ID
+      description: Returns a list of all students in a specific department with their details.
+      parameters:
+        - in: path
+          name: department_id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successfully retrieved students
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Student'
+        '500':
+          description: Internal server error
+          
+  /interview/start_interview/{interview_id}:
+    get:
+      summary: Start an interview session
+      description: Initiates an interview session for a student, creating an interview instance and generating the first question.
       parameters:
         - in: path
           name: interview_id
           required: true
           schema:
             type: string
+          description: ID of the interview to start
+      responses:
+        '200':
+          description: Interview already in progress
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    enum: [incomplete, complete]
+                  interviewExchanges:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/InterviewExchange'
+                  interview:
+                    $ref: '#/components/schemas/Interview'
+        '201':
+          description: Interview started successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "incomplete"
+                  interviewExchange:
+                    $ref: '#/components/schemas/InterviewExchange'
+                  interview:
+                    $ref: '#/components/schemas/Interview'
+        '400':
+          description: Interview already submitted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Interview already submitted."
+        '404':
+          description: Interview not found or not active
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Interview not found or is not active."
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Internal server error. Please try again later."
+
+  /interview/next/{interview_id}:
+    post:
+      summary: Submit response and get next question
+      description: Submits the student's response to the current question, provides feedback, and generates the next question.
+      parameters:
+        - in: path
+          name: interview_id
+          required: true
+          schema:
+            type: string
+          description: ID of the interview
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - response
+              properties:
+                response:
+                  type: string
+                  description: Student's answer to the current question
+      responses:
+        '200':
+          description: Response processed successfully
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - type: object
+                    properties:
+                      status:
+                        type: string
+                        enum: [incomplete, complete]
+                        example: "incomplete"
+                      interviewExchanges:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/InterviewExchange'
+                  - type: object
+                    properties:
+                      message:
+                        type: string
+                        example: "You have already answered all the questions."
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Response cannot be empty."
+        '404':
+          description: Interview not found or inactive
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Interview not found or is not active."
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Internal server error. Please try again later."
+
+  /interview/submit/{interview_id}:
+    get:
+      summary: Submit completed interview
+      description: Finalizes the interview, generates overall feedback and evaluation metrics, and marks the interview as submitted.
+      parameters:
+        - in: path
+          name: interview_id
+          required: true
+          schema:
+            type: string
+          description: ID of the interview to submit
       responses:
         '200':
           description: Interview submitted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "submitted"
+                  interviewInstance:
+                    $ref: '#/components/schemas/InterviewInstance'
+                  interviewExchanges:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/InterviewExchange'
+        '400':
+          description: Error in submission
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "You have not answered all the questions yet. Please answer or skip the question."
         '404':
           description: Interview not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Interview not found or is not active."
         '500':
           description: Internal server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Internal server error. Please try again later."
+
   /interview/reframe/{interview_id}:
     get:
-      summary: Reframe last interview question
+      summary: Reframe current interview question
+      description: Rephrases the current question if the student is having difficulty understanding it.
       parameters:
         - in: path
           name: interview_id
           required: true
           schema:
             type: string
+          description: ID of the interview
       responses:
         '200':
-          description: Successfully reframed question
+          description: Question reframed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "The last question has been reframed."
+                  interviewExchanges:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/InterviewExchange'
+        '400':
+          description: Cannot reframe
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "You have already answered all the questions."
         '404':
           description: Interview not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Interview not found or is not active."
         '500':
           description: Internal server error
-  /god/addAdmin:
-    post:
-      summary: Add a new admin
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Internal server error. Please try again later."
+
+  /interview/violation/{interview_id}:
+    get:
+      summary: Report interview violation
+      description: Records a violation event (such as tab switching or leaving the interview page).
+      parameters:
+        - in: path
+          name: interview_id
+          required: true
+          schema:
+            type: string
+          description: ID of the interview
       responses:
-        '201':
-          description: Admin added successfully
-        '409':
-          description: Roll number already exists
+        '200':
+          description: Violation recorded successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  violation:
+                    type: integer
+                    example: 1
+        '400':
+          description: Interview already submitted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Interview already submitted."
+        '404':
+          description: Interview not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Interview not found or is not active."
         '500':
           description: Internal server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Internal server error. Please try again later."
+          
   /god/addCollege:
     post:
       summary: Add a new college
+      description: Creates a new college in the system with a name and default password for student accounts.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+                - defaultPassword
+              properties:
+                name:
+                  type: string
+                  example: "University of Technology"
+                defaultPassword:
+                  type: string
+                  example: "defaultPass123"
       responses:
         '201':
           description: College added successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                    example: "8"
+                  name:
+                    type: string
+                    example: "University of Technology"
+                  createdAt:
+                    type: string
+                    format: date-time
+                    example: "2023-06-15T10:30:00.000Z"
+                  updatedAt:
+                    type: string
+                    format: date-time
+                    example: "2023-06-15T10:30:00.000Z"
         '409':
           description: College already exists
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "College already exists."
         '500':
           description: Internal server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "Internal server error: Error message details"
+          
   /god/getAllColleges:
     get:
       summary: Get all colleges
+      description: Lists all colleges registered in the system without exposing sensitive information.
       responses:
         '200':
           description: Successfully retrieved colleges
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: string
+                    name:
+                      type: string
         '500':
           description: Internal server error
+          
   /god/deleteCollege/{id}:
     delete:
       summary: Delete a college
+      description: Removes a college and all its associated data from the system.
       parameters:
         - in: path
           name: id
@@ -384,13 +2462,132 @@ paths:
       responses:
         '200':
           description: College deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
         '404':
           description: College not found
         '500':
           description: Internal server error
+          
+  /god/updateCollege:
+    post:
+      summary: Update college details
+      description: Modifies college information or subscription status.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                subscriptionStatus:
+                  type: string
+      responses:
+        '200':
+          description: College updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+        '404':
+          description: College not found
+        '500':
+          description: Internal server error
+          
+  /god/addAdmin/{id}:
+    post:
+      summary: Add or update admin for a college
+      description: Creates a new admin account or updates an existing one for a specific college.
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+          description: College ID
+          example: "5"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - rollNumber
+                - name
+              properties:
+                rollNumber:
+                  type: string
+                  example: "admin123"
+                name:
+                  type: string
+                  example: "Admin User"
+      responses:
+        '201':
+          description: Admin added or updated successfully
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - type: object
+                    properties:
+                      message:
+                        type: string
+                        example: "admin updated successfully"
+                  - type: object
+                    properties:
+                      roll_number:
+                        type: string
+                        example: "admin123"
+                      username:
+                        type: string
+                        example: "Admin User"
+                      college_id:
+                        type: string
+                        example: "5"
+                      createdAt:
+                        type: string
+                        format: date-time
+                        example: "2023-06-20T09:45:00.000Z"
+                      updatedAt:
+                        type: string
+                        format: date-time
+                        example: "2023-06-20T09:45:00.000Z"
+        '404':
+          description: College not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "College not found."
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "Error message details"
+          
   /god/getCollegeAdmins/{id}:
     get:
       summary: Get admins of a college
+      description: Lists all admin users for a specific college without exposing sensitive data.
       parameters:
         - in: path
           name: id
@@ -400,7 +2597,225 @@ paths:
       responses:
         '200':
           description: Successfully retrieved admins
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    roll_number:
+                      type: string
+                    username:
+                      type: string
         '404':
           description: College not found
         '500':
           description: Internal server error
+          
+  /god/deleteAdmin/{roll_number}:
+    delete:
+      summary: Delete an admin
+      description: Removes an admin account from the system.
+      parameters:
+        - in: path
+          name: roll_number
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Admin deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+        '404':
+          description: Admin not found
+        '500':
+          description: Internal server error
+          
+  /god/updateAdmin/{roll_number}:
+    post:
+      summary: Update admin information
+      description: Modifies admin details and optionally resets their password to the college default.
+      parameters:
+        - in: path
+          name: roll_number
+          required: true
+          schema:
+            type: string
+          description: Admin roll number
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - username
+              properties:
+                username:
+                  type: string
+                  example: "Updated Admin Name"
+                resetPassword:
+                  type: boolean
+                  example: true
+                  description: If true, resets password to college default
+      responses:
+        '200':
+          description: Admin updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  roll_number:
+                    type: string
+                  username:
+                    type: string
+                  college_id:
+                    type: string
+                  createdAt:
+                    type: string
+                    format: date-time
+                  updatedAt:
+                    type: string
+                    format: date-time
+        '404':
+          description: Admin not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "Admin not found."
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "Internal server error: Error message details"
+
+components:
+  schemas:
+    InterviewExchange:
+      type: object
+      properties:
+        id:
+          type: string
+        interview_ins_ref:
+          type: string
+        question:
+          type: string
+        code:
+          type: string
+          description: Code snippet for coding questions
+        response:
+          type: string
+        feedback:
+          type: string
+        marks:
+          type: number
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+          
+    Interview:
+      type: object
+      properties:
+        id:
+          type: string
+        collage_id:
+          type: string
+        name:
+          type: string
+        subject:
+          type: string
+        topic:
+          type: string
+        no_of_questions:
+          type: integer
+        no_of_coding_questions:
+          type: integer
+        status:
+          type: string
+          enum: [active, paused, scheduled]
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+          
+    InterviewInstance:
+      type: object
+      properties:
+        id:
+          type: string
+        student_roll:
+          type: string
+        interview_ref:
+          type: string
+        marks:
+          type: number
+        feedback:
+          type: object
+          properties:
+            strengths:
+              type: string
+            weaknesses:
+              type: string
+            summary:
+              type: string
+        violation:
+          type: integer
+        ip:
+          type: string
+        boolIpChange:
+          type: boolean
+        status:
+          type: string
+          enum: [submitted, not submitted]
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+          
+    Student:
+      type: object
+      properties:
+        roll_number:
+          type: string
+        username:
+          type: string
+        year:
+          type: integer
+        semester:
+          type: integer
+        department_id:
+          type: string
+        section:
+          type: string
+        college_id:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time

@@ -42,6 +42,7 @@ Student.init(
     year: {
       type: DataTypes.INTEGER,
       allowNull: false,
+      defaultValue: 1,
     },
     semester: {
       type: DataTypes.ENUM('1', '2'),

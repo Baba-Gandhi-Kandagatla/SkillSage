@@ -15,6 +15,9 @@ export interface IInterviewInstance {
   student_roll: string;
   marks: number;
   feedback: IFeedBack;
+  violation : number;
+  ip: string;
+  boolIpChange: boolean;
   status: "submitted"|"not submitted";
 }
 
@@ -24,6 +27,9 @@ class InterviewInstance extends Model<IInterviewInstance> implements IInterviewI
   public student_roll!: string;
   public marks!: number;
   public feedback!: IFeedBack;
+  public violation!: number;
+  public ip!: string;
+  public boolIpChange!: boolean;
   public status!: "submitted"|"not submitted";
 }
 
@@ -45,13 +51,28 @@ InterviewInstance.init(
       allowNull: false,
     },
     marks: {
-      type: DataTypes.INTEGER,
+      type: DataTypes.DECIMAL(10, 4),
       allowNull: false,
     },
     feedback: {
       type: DataTypes.JSONB,
       allowNull: true,
       defaultValue: null,
+    },
+    violation: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      defaultValue: 0,
+    },
+    ip: {
+      type: DataTypes.STRING,
+      allowNull: false,
+      defaultValue: '',
+    },
+    boolIpChange: {
+      type: DataTypes.BOOLEAN,
+      allowNull: false,
+      defaultValue: false,
     },
     status: {
       type: DataTypes.ENUM('submitted', 'not submitted'),

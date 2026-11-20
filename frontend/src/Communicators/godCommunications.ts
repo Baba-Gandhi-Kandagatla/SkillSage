@@ -51,3 +51,24 @@ export const addAdmin = async (id: number, admin: any) => {
         return null;
     }
 }
+
+
+export const deleteAdmin = async (id: string) => {
+    try {
+        const response = await axios.delete(`/god/deleteAdmin/${id}`);
+        return response.data;
+    } catch (error) {
+        console.error("Error while deleting admin:", error);
+        return null;
+    }
+}
+
+export const updateAdmin = async (roll_number: string, payload: any) => {
+    try {
+        const response = await axios.post(`/god/updateAdmin/${roll_number}`, payload);
+        return response.data;
+    } catch (error) {
+        console.error("Error while updating admin:", error);
+        return null;
+    }
+}

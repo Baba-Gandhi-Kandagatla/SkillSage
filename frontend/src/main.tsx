@@ -1,3 +1,4 @@
+import "regenerator-runtime/runtime";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";
@@ -11,7 +12,7 @@ createRoot(document.getElementById("root")!).render(
     <AuthProvider>
       <BrowserRouter>
         <Toaster
-          position="top-right"
+          position="bottom-center"
           toastOptions={{
             duration: 3500, // Slightly longer duration for better user attention
             style: {

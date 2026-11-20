@@ -11,3 +11,36 @@ html, body {
   /* background-color: white */
 }
 
+@keyframes gradientShift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+/* Pulse and bounce animation */
+@keyframes pulseBounce {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.1); }
+  70% { transform: scale(0.95); }
+  100% { transform: scale(1); }
+}
+.submit-shadow {
+  position: relative;
+  background: #000;
+  color: #fff;
+  z-index: 0;
+  animation: gradientShift 3s linear infinite, pulseBounce 2s ease-in-out infinite;
+}
+.submit-shadow::before {
+  content: "";
+  position: absolute;
+  top: -5px;
+  left: -5px;
+  right: -5px;
+  bottom: -5px;
+  border-radius: inherit;
+  background: linear-gradient(45deg, #ff0096, #00cfff, #ff0096);
+  background-size: 200% 200%;
+  filter: blur(8px);
+  z-index: -1;
+  animation: gradientShift 3s linear infinite;
+}

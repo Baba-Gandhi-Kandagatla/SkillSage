@@ -4,22 +4,22 @@ import Admin from './Admin.js';
 import Student from './student.js';
 
 export interface IAuditLog {
-  id: bigint;
+  id: number;
   roll_number: string;
   ipaddress: string;
-  event: string;
-  message: string;
-  useragent: string;
+  route: string;
+  status: string;
+  data: object;
   time: Date;
 }
 
 class AuditLog extends Model<IAuditLog> implements IAuditLog {
-  public id!: bigint;
+  public id!: number;
   public roll_number!: string;
   public ipaddress!: string;
-  public event!: string;
-  public message!: string;
-  public useragent!: string;
+  public route!: string;
+  public status!: string;
+  public data!: object;
   public time!: Date;
 }
 
@@ -38,21 +38,22 @@ AuditLog.init(
       type: DataTypes.STRING,
       allowNull: false,
     },
-    event: {
-      type: DataTypes.TEXT,
+    route: {
+      type: DataTypes.STRING,
       allowNull: false,
     },
-    message: {
-      type: DataTypes.TEXT,
+    status: {
+      type: DataTypes.STRING,
       allowNull: true,
     },
-    useragent: {
-      type: DataTypes.TEXT,
+    data: {
+      type: DataTypes.JSONB, // Use JSONB for PostgreSQL or JSON for MySQL
       allowNull: false,
     },
     time: {
       type: DataTypes.DATE,
       allowNull: false,
+      defaultValue: DataTypes.NOW,
     },
   },
   {
@@ -62,8 +63,8 @@ AuditLog.init(
   }
 );
 
-
-AuditLog.belongsTo(Student, { foreignKey: 'roll_number' });
-AuditLog.belongsTo(Admin, { foreignKey: 'roll_number' });
+// Relationships
+AuditLog.belongsTo(Student, { foreignKey: 'roll_number', constraints: false });
+AuditLog.belongsTo(Admin, { foreignKey: 'roll_number', constraints: false });
 
 export default AuditLog;

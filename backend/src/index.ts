@@ -1,12 +1,10 @@
 import app from "./app.js";
-import { connectDB } from './db/connection.js';
-import Interview from './models/Interview.js';
-import InterviewInstance from './models/Interview_ins.js';
-import sequelize from './db/connection.js';
+import sequelize, { connectDB } from './db/connection.js';
 import setupAssociations from "./models/associations.js";
 
+const PORT = Number(process.env.PORT) || 5000;
+// const HOST = '23.23.1.0';
 
-const PORT = process.env.PORT || 5000;
 try {
   await connectDB().then(() => console.log("Connected to the database successfully."));
 
@@ -19,8 +17,8 @@ try {
 
   console.log("Models synced successfully.");
   
-  app.listen(PORT, () => {
-    console.log(`Server started on port ${PORT}`);
+  app.listen(PORT,'0.0.0.0', () => {
+    console.log(`Server started on ${PORT}`);
   });
 } catch (err) {
   console.error("Error during startup:", err);

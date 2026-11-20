@@ -38,32 +38,34 @@ export const Departments = () => {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [addDepartmentName, setAddDepartmentName] = useState("");
 
-  useEffect(() => {
-    const fetchDepartments = async () => {
-      try {
-        const deptData = await getAllDepartments();
-        setDepartments(deptData.map((dept) => dept.name));
-      } catch (error) {
-        // Handle error
-      }
-    };
-    fetchDepartments();
+  // New: Refresh departments list function
+  const refreshDepartments = useCallback(async () => {
+    try {
+      const deptData = await getAllDepartments();
+      setDepartments(deptData.map((dept) => dept.name));
+    } catch (error) {
+      // Handle error
+    }
   }, []);
+
+  useEffect(() => {
+    refreshDepartments();
+  }, [refreshDepartments]);
 
   const handleAddDepartment = useCallback(async () => {
     if (addDepartmentName && !departments.includes(addDepartmentName)) {
       try {
         await addDepartment(addDepartmentName);
-        setDepartments([...departments, addDepartmentName]);
-        toast.success(`Department "${addDepartmentName}" added successfully.`);
+        toast.success(`Batch "${addDepartmentName}" added successfully.`);
+        await refreshDepartments();
       } catch (error) {
-        toast.error("Failed to add department.");
+        toast.error("Failed to add batch.");
       } finally {
         setIsAddModalOpen(false);
         setAddDepartmentName("");
       }
     }
-  }, [addDepartmentName, departments]);
+  }, [addDepartmentName, departments, refreshDepartments]);
 
   const closeAddModal = () => {
     setIsAddModalOpen(false);
@@ -81,9 +83,9 @@ export const Departments = () => {
       setDepartments((prevDepartments) =>
         prevDepartments.filter((d) => d !== departmentToDelete)
       );
-      toast.success(`Department "${departmentToDelete}" deleted successfully.`);
+      toast.success(`Batch ${departmentToDelete} deleted successfully.`);
     } catch (error: any) {
-      toast.error("Failed to delete department.");
+      toast.error("Failed to delete Batch.");
     } finally {
       setIsDeleteModalOpen(false);
       setDepartmentToDelete("");
@@ -103,11 +105,11 @@ export const Departments = () => {
         <Card className="shadow-md">
           <div className="flex items-center justify-between ">
             <CardHeader>
-              <CardTitle>Departments</CardTitle>
-              <CardDescription>Manage departments</CardDescription>
+              <CardTitle>Batches</CardTitle>
+              <CardDescription>Manage Batches</CardDescription>
             </CardHeader>
             <div className="p-4 flex flex-col justify-center  gap-2">
-              <Label htmlFor="new-department">Add Department</Label>
+              <Label htmlFor="new-department">Add Batch</Label>
               <div className="flex space-x-2 ">
                 <AnimatedButton
                   onClick={() => setIsAddModalOpen(true)}
@@ -125,7 +127,7 @@ export const Departments = () => {
           <CardContent>
             <div className="space-y-3">
               <div className="space-y-2">
-                <Label>Existing Departments</Label>
+                <Label>Existing Batches</Label>
                 <div className="space-y-2">
                   {departments.map((dept) => (
                     <motion.div
@@ -173,7 +175,7 @@ export const Departments = () => {
                 <h2 className="text-gray-800 font-semibold mb-4">Attention</h2>
                 <p className="text-gray-800 mb-4">
                   Please type <strong>'delete'</strong> to confirm the deletion of
-                  the department "{departmentToDelete}".
+                  the batch "{departmentToDelete}".
                 </p>
                 <Input
                   value={deleteConfirmationText}
@@ -218,12 +220,12 @@ export const Departments = () => {
                 className="bg-slate-100 px-8 py-6 rounded-lg shadow-xl z-10"
               >
                 <h2 className="text-gray-800 font-semibold mb-4">
-                  Add Department
+                  Add Batch
                 </h2>
                 <Input
                   value={addDepartmentName}
                   onChange={(e) => setAddDepartmentName(e.target.value)}
-                  placeholder="Enter department name"
+                  placeholder="Enter batch name"
                   className="mb-4 w-[320px]"
                 />
                 <div className="flex justify-end space-x-2">

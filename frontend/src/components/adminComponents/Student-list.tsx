@@ -32,33 +32,24 @@ import {
   Search,
   Trash2,
   Upload,
+  AlertTriangle,
 } from "lucide-react";
 import React, { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import AddStudentForm from "./AddStudentForm";
+import toast from "react-hot-toast";
 
 interface Student {
   roll_number: string;
   username: string;
-  year: string;
   department_name: string;
   department_id: number;
 }
 
 export default function AdminStudentManagement() {
   const navigate = useNavigate();
-  const { year } = useParams<{ year: string }>();
-
-  useEffect(() => {
-    if (parseInt(year || "0") > 4) {
-      navigate("/admin/student-list/4", { replace: true });
-      return;
-    }
-    setNewStudent((prevStudent) => ({
-      ...prevStudent,
-      year: year || "",
-    }));
-  }, [year, navigate]);
+  const { department_id } = useParams<{ department_id: string }>();
+  const departmentIdNumber = department_id ? parseInt(department_id) : 0;
 
   const [students, setStudents] = useState<Student[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
@@ -71,34 +62,43 @@ export default function AdminStudentManagement() {
   const [newStudent, setNewStudent] = useState<Omit<Student, "id">>({
     roll_number: "",
     username: "",
-    year: year || "",
     department_name: "",
-    department_id: 0,
+    department_id: departmentIdNumber,
   });
+  const [departmentName, setDepartmentName] = useState<string>("");
 
+  // Combined useEffect to fetch department name and students
   useEffect(() => {
-    setIsWarningModalOpen(false);
-    const fetchStudents = async () => {
+    const initializeData = async () => {
       setIsLoading(true);
       try {
-        const studentsData = await getAllStudents(year || "");
-        const studentsWithDepartment = await Promise.all(
-          await studentsData.map(async (student: { department_id: BigInt }) => {
-            const department_name = await getDepartment(student.department_id);
-            return { ...student, department_name };
-          })
-        );
+        // Fetch department name first
+        const deptName = await getDepartment(BigInt(departmentIdNumber));
+        setDepartmentName(deptName);
+
+        // Set department name for new student
+        setNewStudent((prev) => ({
+          ...prev,
+          department_name: deptName,
+        }));
+
+        // Fetch and set students with the known department name
+        const studentsData = await getAllStudents(departmentIdNumber);
+        const studentsWithDepartment = studentsData.map((student: any) => ({
+          ...student,
+          department_name: deptName,
+        }));
         setStudents(studentsWithDepartment);
       } catch (error) {
-        console.error("Error fetching students:", error);
+        console.error("Error fetching data:", error);
       } finally {
         setIsLoading(false);
-        // window.location.reload();
       }
     };
 
-    fetchStudents();
-  }, [year]);
+    setIsWarningModalOpen(false);
+    initializeData();
+  }, [departmentIdNumber]);
 
   const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchTerm(e.target.value);
@@ -114,16 +114,14 @@ export default function AdminStudentManagement() {
     await addStudent(
       newStudent.roll_number,
       newStudent.username,
-      newStudent.department_name,
-      Number(newStudent.year)
+      newStudent.department_name
     );
     setStudents([...students, { ...newStudent }]);
     setNewStudent({
       roll_number: "",
       username: "",
-      year: year || "",
       department_name: "",
-      department_id: 0,
+      department_id: departmentIdNumber,
     });
     setShowAddForm(false);
   };
@@ -133,16 +131,16 @@ export default function AdminStudentManagement() {
     if (file) {
       const fileType = file.name.split(".").pop()?.toLowerCase();
       if (!["csv", "xlsx"].includes(fileType || "")) {
-        alert("Please upload only CSV or XLSX files");
+        toast.error("Please upload only CSV or XLSX files");
         return;
       }
 
       const formData = new FormData();
       formData.append("studentsFile", file);
-      formData.append("year", year || "");
+      formData.append("department_id", departmentIdNumber.toString());
       try {
         await addStudents(formData);
-        const studentsData = await getAllStudents(year || "");
+        const studentsData = await getAllStudents(departmentIdNumber);
         const studentsWithDepartment = await Promise.all(
           await studentsData.map(async (student: { department_id: BigInt }) => {
             const department_name = await getDepartment(student.department_id);
@@ -158,15 +156,13 @@ export default function AdminStudentManagement() {
     e.target.value = ""; // Reset the input value
   };
 
-  const deleteStudents = async (year: number) => {
-    // console.log(`Deleting all students of ${year} year`)
-    await deleteAllStudents(year);
+  const deleteStudents = async (department_id: number) => {
+    await deleteAllStudents(department_id);
     setStudents([]);
     setIsWarningModalOpen(false);
   };
 
   const deleteOneStudent = async (roll_number: string) => {
-    // console.log(`Deleting student with roll number: ${roll_number}`)
     await deleteStudent(roll_number);
     handleDelete(roll_number);
     setIsWarningDelete("");
@@ -202,6 +198,13 @@ export default function AdminStudentManagement() {
     }
   };
 
+  useEffect(() => {
+    const totalPages = Math.ceil(filteredStudents.length / studentsPerPage);
+    if (currentPage > totalPages && totalPages > 0) {
+      setCurrentPage(totalPages);
+    }
+  }, [filteredStudents, studentsPerPage, currentPage]);
+
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -210,8 +213,7 @@ export default function AdminStudentManagement() {
       className="container mx-auto p-6 min-h-screen text-gray-800 pt-20"
     >
       <h1 className="text-3xl font-bold mb-6 text-gray-900 text-center md:text-left">
-        Student Management for {year}
-        {year === "2" ? "nd" : year === "3" ? "rd" : "th"} year
+        Student Management for Batch {departmentName}
       </h1>
 
       <div className="mb-6 flex flex-col md:flex-row justify-between items-center">
@@ -228,7 +230,7 @@ export default function AdminStudentManagement() {
         <div className="flex items-center space-x-4">
           <Button
             onClick={() => setIsWarningModalOpen(true)}
-            className="bg-red-800 text-white hover:bg-red-700"
+            className="bg-gray-900 hover:bg-gray-800 text-white shadow-lg transition-transform transform hover:scale-105"
           >
             <MinusCircleIcon className="mr-2 h-4 w-4" />
             Delete All
@@ -267,15 +269,15 @@ export default function AdminStudentManagement() {
             >
               <h2 className="text-gray-800 font-semibold mb-4">Attention</h2>
               <p className="text-gray-800 mb-4">
-                This will remove all students of {year} year from database. Are
-                you sure you want to proceed?
+                This will remove all students from the department. Are you sure
+                you want to proceed?
               </p>
               <div className="flex justify-end space-x-2">
                 <Button onClick={() => setIsWarningModalOpen(false)}>
                   Cancel
                 </Button>
                 <Button
-                  onClick={() => deleteStudents(Number(year))}
+                  onClick={() => deleteStudents(departmentIdNumber)}
                   className="bg-red-800 hover:bg-slate-950 text-white"
                 >
                   Delete
@@ -303,121 +305,129 @@ export default function AdminStudentManagement() {
         </div>
       ) : (
         <div
-          className="bg-white rounded-lg shadow-md overflow-hidden"
+          className="bg-white rounded-lg shadow-xl overflow-hidden"
           style={{ height: "60vh" }}
         >
           <div className="overflow-auto h-full">
-            <Table>
-              <TableHeader>
-                <TableRow className="bg-gray-200">
-                  <TableHead className="text-gray-700 text-center">
-                    Roll Number
-                  </TableHead>
-                  <TableHead className="text-gray-700 text-center ">
-                    Name
-                  </TableHead>
-                  <TableHead className="text-gray-700 text-center ">
-                    Branch
-                  </TableHead>
-                  <TableHead className="text-gray-700 text-center">
-                    Actions
-                  </TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                <AnimatePresence>
-                  {currentStudents.map((student) => (
-                    <motion.tr
-                      key={student.roll_number}
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      exit={{ opacity: 0 }}
-                      transition={{ duration: 0.2 }}
-                      className="hover:bg-gray-100"
-                    >
-                      <TableCell className="text-gray-800 text-center">
-                        {student.roll_number}
-                      </TableCell>
-                      <TableCell className="text-gray-800 text-center">
-                        {student.username}
-                      </TableCell>
-                      <TableCell className="text-gray-800 text-center">
-                        {student.department_name}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex justify-center items-start space-x-2">
-                          <Button
-                            variant="ghost"
-                            onClick={() =>
-                              setIsWarningDelete(student.roll_number)
-                            }
-                            className="p-0 h-8 w-8 rounded-full"
-                          >
-                            <Trash2 className="h-4 w-4 text-red-500" />
-                          </Button>
-
-                          <Button
-                            onClick={() =>
-                              navigate(
-                                `/admin/view-student/${student.roll_number}`
-                              )
-                            }
-                            className="bg-gray-800 text-white hover:bg-gray-700 px-3 py-1 rounded h-8"
-                          >
-                            View
-                          </Button>
-                        </div>
-                        <AnimatePresence>
-                          {isWarningDelete && (
-                            <motion.div
-                              initial={{ opacity: 0 }}
-                              animate={{ opacity: 1 }}
-                              exit={{ opacity: 0 }}
-                              className="fixed inset-0 z-50 flex items-center justify-center"
+            {filteredStudents.length === 0 ? (
+              <div className="flex flex-col items-center justify-center h-full text-yellow-500">
+                <AlertTriangle className="h-8 w-8 mb-2" />
+                <span>No students in this Batch</span>
+              </div>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-gray-200">
+                    <TableHead className="text-gray-700 text-center">
+                      Roll Number
+                    </TableHead>
+                    <TableHead className="text-gray-700 text-center ">
+                      Name
+                    </TableHead>
+                    <TableHead className="text-gray-700 text-center ">
+                      Branch
+                    </TableHead>
+                    <TableHead className="text-gray-700 text-center">
+                      Actions
+                    </TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  <AnimatePresence>
+                    {currentStudents.map((student) => (
+                      <motion.tr
+                        key={student.roll_number}
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        transition={{ duration: 0.2 }}
+                        className="hover:bg-gray-100"
+                      >
+                        <TableCell className="text-gray-800 text-center">
+                          {student.roll_number}
+                        </TableCell>
+                        <TableCell className="text-gray-800 text-center">
+                          {student.username}
+                        </TableCell>
+                        <TableCell className="text-gray-800 text-center">
+                          {student.department_name}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex justify-center items-start space-x-2">
+                            <Button
+                              variant="ghost"
+                              onClick={() =>
+                                setIsWarningDelete(student.roll_number)
+                              }
+                              className="p-0 h-8 w-8 rounded-full"
                             >
-                              <div className="absolute inset-0 bg-black opacity-30"></div>
+                              <Trash2 className="h-4 w-4 text-red-500" />
+                            </Button>
+
+                            <Button
+                              onClick={() =>
+                                navigate(
+                                  `/admin/view-student/${student.roll_number}`
+                                )
+                              }
+                              className="bg-gray-800 text-white hover:bg-gray-700 px-3 py-1 rounded h-8"
+                            >
+                              View
+                            </Button>
+                          </div>
+                          <AnimatePresence>
+                            {isWarningDelete && (
                               <motion.div
-                                initial={{ scale: 0.9 }}
-                                animate={{ scale: 1 }}
-                                exit={{ scale: 0.9 }}
-                                className="bg-slate-100 p-6 rounded-lg shadow-xl z-10"
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                exit={{ opacity: 0 }}
+                                className="fixed inset-0 z-50 flex items-center justify-center"
                               >
-                                <h2 className="text-gray-800 font-semibold mb-4 text-xl">
-                                  Attention
-                                </h2>
-                                <p
-                                  className="text-gray-800 mb-4 "
-                                  style={{ fontSize: "18px" }}
+                                <div className="absolute inset-0 bg-black opacity-30"></div>
+                                <motion.div
+                                  initial={{ scale: 0.9 }}
+                                  animate={{ scale: 1 }}
+                                  exit={{ scale: 0.9 }}
+                                  className="bg-slate-100 p-6 rounded-lg shadow-xl z-10"
                                 >
-                                  This will remove the data for student bearing
-                                  roll number: <b>{isWarningDelete}</b> <br />
-                                  Are you sure you want to proceed?
-                                </p>
-                                <div className="flex justify-end space-x-2">
-                                  <Button
-                                    onClick={() => setIsWarningDelete("")}
+                                  <h2 className="text-gray-800 font-semibold mb-4 text-xl">
+                                    Attention
+                                  </h2>
+                                  <p
+                                    className="text-gray-800 mb-4 "
+                                    style={{ fontSize: "18px" }}
                                   >
-                                    Cancel
-                                  </Button>
-                                  <Button
-                                    onClick={() =>
-                                      deleteOneStudent(isWarningDelete)
-                                    }
-                                    className="bg-red-800 hover:bg-slate-950 text-white"
-                                  >
-                                    Delete
-                                  </Button>
-                                </div>
+                                    This will remove the data for student
+                                    bearing roll number: <b>{isWarningDelete}</b>{" "}
+                                    <br />
+                                    Are you sure you want to proceed?
+                                  </p>
+                                  <div className="flex justify-end space-x-2">
+                                    <Button
+                                      onClick={() => setIsWarningDelete("")}
+                                    >
+                                      Cancel
+                                    </Button>
+                                    <Button
+                                      onClick={() =>
+                                        deleteOneStudent(isWarningDelete)
+                                      }
+                                      className="bg-red-800 hover:bg-slate-950 text-white"
+                                    >
+                                      Delete
+                                    </Button>
+                                  </div>
+                                </motion.div>
                               </motion.div>
-                            </motion.div>
-                          )}
-                        </AnimatePresence>
-                      </TableCell>
-                    </motion.tr>
-                  ))}
-                </AnimatePresence>
-              </TableBody>
-            </Table>
+                            )}
+                          </AnimatePresence>
+                        </TableCell>
+                      </motion.tr>
+                    ))}
+                  </AnimatePresence>
+                </TableBody>
+              </Table>
+            )}
           </div>
         </div>
       )}
@@ -434,6 +444,12 @@ export default function AdminStudentManagement() {
             <SelectValue placeholder="Results per page" />
           </SelectTrigger>
           <SelectContent className="bg-white border-gray-300 text-gray-800">
+            <SelectItem value="15" className="focus:bg-gray-100">
+              15 per page
+            </SelectItem>
+            <SelectItem value="20" className="focus:bg-gray-100">
+              20 per page
+            </SelectItem>
             <SelectItem value="25" className="focus:bg-gray-100">
               25 per page
             </SelectItem>

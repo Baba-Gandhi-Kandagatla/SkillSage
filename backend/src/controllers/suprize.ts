@@ -22,7 +22,7 @@ const findUserByRollNumber = async (rollNumber: string) => {
 const clearAndSetCookie = (res: Response, token: string) => {
   res.clearCookie(COOKIE_NAME, {
     httpOnly: true,
-    domain: "localhost",
+    domain: process.env.FRONTEND_URL,
     signed: true,
     path: "/",
   });
@@ -42,7 +42,7 @@ export const login = async (req: Request, res: Response) => {
   const { rollNumber, password } = req.body;
   try {
     const user = await findUserByRollNumber(rollNumber);
-    console.log(user);
+    
     if (!user) {
       return res.status(404).json({ message: "User not found." });
     }
@@ -77,7 +77,6 @@ export const login = async (req: Request, res: Response) => {
       username: userData.username,
       role: user instanceof Student ? "student" : "admin",
     };
-    console.log("Abcd");
 
     res.status(200).json({ ...userInfo, message: "Login successful" });
   } catch (error) {

@@ -1,0 +1,124 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend
+  labels:
+    app: backend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: backend
+  template:
+    metadata:
+      labels:
+        app: backend
+    spec:
+      containers:
+        - name: backend
+          image: bharadwajreddy1406/skillsage-backend:latest
+          ports:
+            - containerPort: 5000
+          env:
+            - name: PORT
+              valueFrom:
+                secretKeyRef:
+                  name: env-secrets
+                  key: PORT
+            - name: FRONTEND_URL
+              valueFrom:
+                secretKeyRef:
+                  name: env-secrets
+                  key: FRONTEND_URL
+            - name: DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: env-secrets
+                  key: DB_USER
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: env-secrets
+                  key: DB_PASSWORD
+            - name: DB_HOST
+              valueFrom:
+                secretKeyRef:
+                  name: env-secrets
+                  key: DB_HOST
+            - name: DB_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: env-secrets
+                  key: DB_NAME
+            - name: DB_PORT
+              valueFrom:
+                secretKeyRef:
+                  name: env-secrets
+                  key: DB_PORT
+            - name: OPEN_AI_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: env-secrets
+                  key: OPEN_AI_SECRET
+            - name: GROQ_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: env-secrets
+                  key: GROQ_API_KEY
+            - name: COOKIE_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: env-secrets
+                  key: COOKIE_NAME
+            - name: COOKIE_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: env-secrets
+                  key: COOKIE_SECRET
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: env-secrets
+                  key: JWT_SECRET
+            - name: O1_KEY0
+              valueFrom:
+                secretKeyRef:
+                  name: env-secrets
+                  key: O1_KEY0
+            - name: O1_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: env-secrets
+                  key: O1_KEY
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: env-secrets
+                  key: DATABASE_URL
+            - name: DATABASE_ONLINE
+              valueFrom:
+                secretKeyRef:
+                  name: env-secrets
+                  key: DATABASE_ONLINE
+            - name: PGHOST
+              valueFrom:
+                secretKeyRef:
+                  name: env-secrets
+                  key: PGHOST
+            - name: PGDATABASE
+              valueFrom:
+                secretKeyRef:
+                  name: env-secrets
+                  key: PGDATABASE
+            - name: PGUSER
+              valueFrom:
+                secretKeyRef:
+                  name: env-secrets
+                  key: PGUSER
+            - name: PGPASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: env-secrets
+                  key: PGPASSWORD
+
+            

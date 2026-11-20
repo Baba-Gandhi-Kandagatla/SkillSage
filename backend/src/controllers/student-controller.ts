@@ -11,10 +11,11 @@ import path from "path";
 import EvalMetrics from "../models/Eval_metrics.js";
 import Department from "../models/Department.js";
 import College from "../models/College.js";
-import { generateResumeSummary } from "../Api-helper/helper.js";
+import { generateResumeSummary , generateSkillEvaluation} from "../Api-helper/helper.js";
 import InterviewInstance from "../models/Interview_ins.js";
 import InterviewExchange from "../models/InterviewExchanges.js";
 import Feedback from "../models/Feedback.js";
+// import pdfParse from 'pdf-parse';
 
 const { hash, compare } =bcrypt;
 async function getStudentByRollNumber(rollNumber: string) {
@@ -53,6 +54,20 @@ export const getAllInterviews = async (req: Request, res: Response) => {
         where: {
           collage_id: user.college_id, 
         },
+        order: [
+          [
+            Interview.sequelize!.literal(
+              `CASE "Interview"."status"
+                 WHEN 'active' THEN 1
+                 WHEN 'scheduled' THEN 2
+                 WHEN 'paused' THEN 3
+                 ELSE 4
+               END`
+            ),
+            'ASC'
+          ],
+          ['id', 'DESC']
+        ],
       });
     res.status(200).json({ interviews });
   }
@@ -60,6 +75,7 @@ export const getAllInterviews = async (req: Request, res: Response) => {
     res.status(500).json({ message: error.message });
   }
 }
+
 
 export const getSpecificInterviews = async (req: Request, res: Response) => {
   try{
@@ -69,7 +85,7 @@ export const getSpecificInterviews = async (req: Request, res: Response) => {
         include: [{
           model: InterviewToDepartment,
           where: {
-            department_id: user.department_id, 
+            department_id: user.department_id
           },
           required: true, 
         },
@@ -83,8 +99,10 @@ export const getSpecificInterviews = async (req: Request, res: Response) => {
         }
       ],
         where: {
-          collage_id: user.college_id, 
+          collage_id: user.college_id,
+          status: "paused"
         },
+        order: [['id', 'DESC']]
       });
       res.status(200).json({ interviews });
     }
@@ -123,7 +141,11 @@ export const getSpecificInterviews = async (req: Request, res: Response) => {
     try {
       const { rollnumber } = res.locals.jwtData;
   
-      const resume = (await Resume.findOne({ where: { roll_number: rollnumber } })).get();
+      const resumeData = (await Resume.findOne({ where: { roll_number: rollnumber } }));
+      if (!resumeData) {
+        return res.status(404).json({ message: "Resume not found" });
+      }
+      const resume = resumeData.get();
       const resume_context = resume.resume_context;
       if (!resume || !resume.resume_loc) {
         return res.status(404).json({ message: "Resume not found" });
@@ -145,61 +167,87 @@ export const getSpecificInterviews = async (req: Request, res: Response) => {
     }
   };
   
+  const upload = multer({ dest: 'uploads/' });
 
-const upload = multer({ dest: 'uploads/' });
-export const uploadResume = [
-  upload.single("resume"),
-  async (req: Request & { file: Express.Multer.File }, res: Response) => {
-    const rollNumber = res.locals.jwtData.rollnumber;
-
-    if (!req.file) {
-      return res.status(400).json({ message: "No file uploaded." });
-    }
-
-    try {
-      const newFilePath = req.file.path;
-
-      const result = await mammoth.extractRawText({ path: newFilePath });
-      const extractedText = result.value;
-      const simple = await generateResumeSummary(extractedText);
-
-      const existingResume = await Resume.findOne({ where: { roll_number: rollNumber } });
-
-      if (existingResume) {
-        const oldFilePath = existingResume.get().resume_loc;
-        if (oldFilePath) {
-          await fsPromises.unlink(oldFilePath).catch((err) => {
-            res.status(500).json({ message: "Error deleting old resume file." });
+  export const uploadResume = [
+    upload.single("resume"),
+    async (req: Request & { file: Express.Multer.File }, res: Response) => {
+      const rollNumber = res.locals.jwtData.rollnumber;
+  
+      if (!req.file) {
+        return res.status(400).json({ message: "No file uploaded." });
+      }
+  
+      try {
+        const newFilePath = req.file.path;
+        // Determine the file extension based on the original file name.
+        const ext = path.extname(req.file.originalname).toLowerCase();
+  
+        let extractedText = "";
+  
+        if (ext === ".pdf") {
+          // For PDF files, read the file as a buffer and extract text using pdf-parse.
+          // const pdfBuffer = await fsPromises.readFile(newFilePath);
+          // const pdfData = await pdfParse(pdfBuffer);
+          // extractedText = pdfData.text;
+        } else if (ext === ".doc" || ext === ".docx") {
+          // For DOC/DOCX files, extract text using mammoth.
+          const result = await mammoth.extractRawText({ path: newFilePath });
+          extractedText = result.value;
+        } else {
+          return res.status(400).json({ message: "Unsupported file type." });
+        }
+  
+        // Process the extracted text.
+        const simple = await generateResumeSummary(extractedText);
+        const evalData = await EvalMetrics.findOne({ where: { roll_number: rollNumber } });
+        const { skills } = await generateSkillEvaluation(
+          extractedText,
+          evalData?.get().skills
+        );
+  
+        if (!evalData) {
+          await EvalMetrics.create({ roll_number: rollNumber, skills: skills });
+        } else {
+          await EvalMetrics.update({ skills: skills }, { where: { roll_number: rollNumber } });
+        }
+  
+        const existingResume = await Resume.findOne({ where: { roll_number: rollNumber } });
+  
+        if (existingResume) {
+          const oldFilePath = existingResume.get().resume_loc;
+          if (oldFilePath) {
+            await fsPromises.unlink(oldFilePath).catch((err) => {
+              console.log("Error deleting old resume file:", err);
+            });
+          }
+  
+          await existingResume.update({
+            resume_loc: newFilePath,
+            resume_context: simple,
+          });
+        } else {
+          await Resume.create({
+            resume_loc: newFilePath,
+            resume_context: simple,
+            roll_number: rollNumber,
           });
         }
-
-        await existingResume.update({
-          resume_loc: newFilePath,
-          resume_context: simple,
-        });
-      } else {
-        await Resume.create({
-          resume_loc: newFilePath,
-          resume_context: simple,
-          roll_number: rollNumber,
-        });
+  
+        res.status(200).json({ message: "Resume uploaded and saved successfully." });
+      } catch (error) {
+        console.error("Upload resume error:", error);
+  
+        if (req.file && req.file.path) {
+          await fsPromises.unlink(req.file.path).catch((err) => {
+            console.error("Error deleting uploaded resume file due to failure:", err);
+          });
+        }
+  
+        res.status(500).json({ message: "Internal server error." });
       }
-
-      res.status(200).json({ message: "Resume uploaded and saved successfully." });
-    } catch (error) {
-      console.error("Upload resume error:", error);
-
-      if (req.file && req.file.path) {
-        await fsPromises.unlink(req.file.path).catch((err) => {
-          console.error("Error deleting uploaded resume file due to failure:", err);
-        });
-      }
-
-      res.status(500).json({ message: "Internal server error." });
-    }
-  },
-];
-
+    },
+  ];
 
 
 export const changePassword = async (req: Request, res: Response) => {
@@ -239,7 +287,7 @@ export const getInterwievResult = async (req: Request, res: Response) => {
     if (!interviewinstance) {
       return res.status(404).json({ message: "Interview instance not found." });
     }
-    const interviewExchanges = await InterviewExchange.findAll({ where: { interview_ins_ref: interviewinstance.get().id } });
+    const interviewExchanges = await InterviewExchange.findAll({ where: { interview_ins_ref: interviewinstance.get().id } ,order: [['id', 'ASC']]});
     if (!interviewExchanges) {
       return res.status(404).json({ message: "Interview exchanges not found." });
     }
@@ -318,8 +366,51 @@ export const getStudentMarksByInterview = async (req: Request, res: Response) =>
     if (!user) {
       return res.status(404).json({ message: "User not found." });
     }
-    const interviewInstancesMarks = await InterviewInstance.findAll({ where: { student_roll: user.get().roll_number } , attributes: ['marks']});
+    const interviewInstancesMarks = await InterviewInstance.findAll({
+      where: { student_roll: user.get().roll_number },
+      attributes: ['marks', 'interview_ref'],
+      include: [{
+        model: Interview,
+        attributes: ['name']
+      }]
+    });
+    
     res.status(200).json(interviewInstancesMarks);
+  } catch (error) {
+    // console.log(error)
+    res.status(500).json({ message: "Internal server error." });
+  }
+};
+
+export const getEvalMetrics = async (req: Request, res: Response) => {
+  const rollNumber = res.locals.jwtData.rollnumber;
+
+  try {
+    const user = await Student.findOne({ where: { roll_number: rollNumber } });
+    if (!user) {
+      return res.status(404).json({ message: "User not found." });
+    }
+
+    // Retrieve evaluation metrics
+    const evaluationMetrics = await EvalMetrics.findAll({
+      where: { roll_number: user.get().roll_number },
+    });
+
+    // Retrieve interview instance marks along with interview name
+    const interviewInstancesMarks = await InterviewInstance.findAll({
+      where: { student_roll: user.get().roll_number },
+      attributes: ['marks', 'interview_ref'],
+      include: [{
+        model: Interview,
+        attributes: ['name']
+      }]
+    });
+
+    // Combined response
+    res.status(200).json({
+      evaluationMetrics,
+      interviewInstancesMarks,
+    });
   } catch (error) {
     res.status(500).json({ message: "Internal server error." });
   }

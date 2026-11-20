@@ -13,6 +13,7 @@ export interface IInterview {
   no_of_questions: number;
   no_of_coding_questions: number;
   status: 'scheduled' | 'paused' | 'active';
+  predefined_questions: string[];
 }
 
 class Interview extends Model<IInterview> implements IInterview {
@@ -24,6 +25,7 @@ class Interview extends Model<IInterview> implements IInterview {
   public no_of_questions!: number;
   public no_of_coding_questions: number;
   public status!: 'scheduled' | 'paused' | 'active';
+  public predefined_questions!: string[];
 }
 
 Interview.init(
@@ -63,6 +65,11 @@ Interview.init(
       type: DataTypes.ENUM('scheduled', 'paused', 'active'),
       allowNull: false,
       defaultValue: 'scheduled',
+    },
+    predefined_questions: {
+      type: DataTypes.JSON, 
+      allowNull: false,
+      defaultValue: [],
     },
   },
   {

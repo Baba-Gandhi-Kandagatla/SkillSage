@@ -3,8 +3,8 @@ import toast from "react-hot-toast";
 // import { setTimeout } from "timers/promises";
 
 export const loginUser = async (rollnumber: string, password: string) => {
+  const loadingToast = toast.loading("Logging in...");
   try {
-    // rollnumber = rollnumber.toUpperCase()
     console.log("Logging in with rollnumber:", rollnumber);
     const res = await axios.post("/login", { rollNumber: rollnumber, password });
     if (res.status !== 200) {
@@ -12,14 +12,14 @@ export const loginUser = async (rollnumber: string, password: string) => {
     }
     const data = await res.data;
     console.log(data);
-    toast.success("Logged in successfully");
+    toast.success("Logged in successfully", { id: loadingToast });
     return {
       rollnumber: data.rollNumber,
       role: data.role,
       username: data.username,
     };
   } catch (error) {
-    toast.error("Cannot Login, Check your credintials");
+    toast.error("Cannot Login, Check your credentials", { id: loadingToast });
     console.error("Error logging in:", error);
     throw error;
   }
@@ -39,6 +39,7 @@ export const checkAuthStatus = async () => {
       username: data.username,
     };
   } catch (error) {
+    // toast.error("Authentication failed");
     console.error("Error checking auth status:", error);
     throw error;
   }
@@ -74,6 +75,7 @@ export const getAllDepartments = async () => {
       updatedAt: string;
     }[];
   } catch (error) {
+    toast.error("Failed to fetch departments");
     console.error("Error fetching departments:", error);
     throw error;
   }
@@ -87,6 +89,7 @@ export const getDepartment = async (id: BigInt) => {
     }
     return res.data;
   } catch (error) {
+    toast.error("Failed to fetch department");
     console.error("Error fetching department:", error);
     throw error;
   }
@@ -100,6 +103,7 @@ export const addDepartment = async (name: string) => {
     }
     return res.data;
   } catch (error) {
+    toast.error("Failed to add department");
     console.error("Error adding department:", error);
     throw error;
   }
@@ -112,7 +116,7 @@ export const deleteDepartment = async (name: string) => {
       toast.error("cannot delete the Departmwent");
       // throw new Error("Failed to delete department")
     }
-    toast.success("Department deleted successfully");
+    // toast.success("Department deleted successfully");
     return res.data;
   } catch (error) {
     console.error("Error deleting department:", error);
@@ -129,6 +133,7 @@ export const getDefaultPassword = async () => {
     }
     return res.data.defaultPassword;
   } catch (error) {
+    toast.error("Failed to fetch default password");
     console.error("Error fetching default password:", error);
     throw error;
   }
@@ -151,6 +156,7 @@ export const addStudents = async (formData: FormData) => {
     toast.success("Students added successfully");
     return res.data;
   } catch (error) {
+    toast.error("Failed to add students");
     console.error("Error adding students:", error);
     throw error;
   }
@@ -160,14 +166,12 @@ export const addStudent = async (
   rollnumber: string,
   name: string,
   department_name: string,
-  year: number
 ) => {
   try {
     const res = await axios.post("/admin/add_student", {
       rollnumber,
       name,
       department_name,
-      year,
     });
 
     if (res.status !== 201) {
@@ -177,7 +181,6 @@ export const addStudent = async (
     toast.success("Student added successfully");
     return res.data;
   } catch (error: any) {
-    console.error("Error adding student:", error);
     if (error.response.status === 409) {
       toast.error("Student already exists");
       throw new Error("Student already exists");
@@ -188,19 +191,18 @@ export const addStudent = async (
       );
       throw new Error("Department not found");
     }
+    toast.error("Failed to add student");
+    console.error("Error adding student:", error);
     // throw error
   }
 };
 
-export const getAllStudents = async (year: string) => {
+export const getAllStudents = async (departmentId: number) => {
   try {
-    const res = await axios.get(`/admin/get_students?year=${year}`);
-    if (res.status !== 200) {
-      throw new Error("Unable to fetch students");
-    }
-    return res.data;
+    const response = await axios.get(`/admin/getStudentsByDepartment/${departmentId}`);
+    return response.data;
   } catch (error) {
-    console.error("Error fetching students:", error);
+    console.error("Error in getAllStudents:", error);
     throw error;
   }
 };
@@ -214,6 +216,7 @@ export const deleteAllStudents = async (year: number) => {
     }
     return res.data;
   } catch (error) {
+    toast.error("Failed to delete all students");
     console.error("Error deleting all students:", error);
     throw error;
   }
@@ -228,8 +231,8 @@ export const deleteStudent = async (id: string) => {
     toast.success("Student deleted successfully");
     return res.data;
   } catch (error: any) {
+    toast.error("Failed to delete student");
     console.error("Error deleting student:", error);
-    toast.error("Failed to delete student", error);
     throw error;
   }
 };
@@ -244,6 +247,7 @@ export const getStudentViewStudent = async (rollnumber: string) => {
     }
     return res.data; // Assuming the backend returns student data in res.data
   } catch (error) {
+    toast.error("Failed to fetch student data");
     console.error("Error fetching student data:", error);
     throw error;
   }
@@ -259,6 +263,7 @@ export const setDefaultPasswordStudent = async (newPassword: string) => {
     toast.success("Password set successfully");
     return res.data;
   } catch (error) {
+    toast.error("Failed to set default password");
     console.error("Error setting default password:", error);
     toast.error("unable to change password");
     throw error;
@@ -273,6 +278,7 @@ export const getStudentDetails = async () => {
     }
     return res.data.user;
   } catch (error) {
+    toast.error("Failed to fetch student details");
     console.error("Error fetching student details:", error);
     throw error;
   }
@@ -284,7 +290,7 @@ export const changeStudentPassword = async (
 ) => {
   try {
     const res = await axios.post(
-      "/api/v1/student/changepassword",
+      "/student/changepassword",
       {
         oldPassword,
         newPassword,
@@ -298,6 +304,7 @@ export const changeStudentPassword = async (
     toast.success("Password Changed Successfully");
     return res.data;
   } catch (error) {
+    toast.error("Failed to change password");
     console.error("Error changing password:", error);
     throw error;
   }
@@ -368,14 +375,15 @@ export const resetStudentPassword = async (rollNumber: string) => {
   }
 };
 
-
 export const getInterviewPreferences = async () => {
   try {
     const response = await axios.get("/admin/getpreference");
-    console.log(response.data);
+    // console.log(response.data);
     return response.data;
   } catch (error) {
+    toast.error("Failed to fetch interview preferences");
     // toast.error("Failed to fetch interview preferences"); // Remove toast
+    throw error;
   }
 };
 
@@ -396,6 +404,149 @@ export const setInterviewPreferences = async (prefs: {
     }
     // toast.success("Interview preferences saved!"); // Remove toast
   } catch (error) {
+    toast.error("Failed to save interview preferences");
     // toast.error("Failed to save interview preferences"); // Remove toast
+    throw error;
+  }
+};
+
+export const getInterviewAttendance = async (interviewId: string) => {
+  try {
+    const res = await axios.get(`/admin/get_attendence/${interviewId}`);
+    if (res.status !== 200) {
+      throw new Error("Unable to fetch attendance data");
+    }
+    toast.success("Data fetched successfully");
+    return res.data;
+  } catch (error) {
+    toast.error("Failed to fetch attendance data");
+    console.error("Error fetching attendance data:", error);
+    throw error;
+  }
+};
+
+
+
+export const getStudentInterviewsByRollNumber = async (rollNumber: string) => {
+  try {
+    const response = await axios.get(`/admin/getStudAttendedInter/${rollNumber}`);
+    return response.data;
+  } catch (error) {
+    toast.error("Failed to fetch student interviews");
+    console.error('Error fetching student interviews:', error);
+    throw error;
+  }
+}
+
+
+export const getDashboardData = async () => {
+
+  try {
+    const response = await axios.get("/admin/getDashboardData");
+    return response.data;
+  } catch (error) {
+    toast.error("Failed to fetch dashboard data");
+    throw error;
+  }
+}
+
+export const getSubjects = async () => {
+  try {
+    const response = await axios.get('/admin/preferences/subjects');
+    return response.data;
+  } catch (error) {
+    // toast.error('Failed to fetch subjects');
+    console.error('Error fetching subjects:', error);
+    throw error;
+  }
+};
+
+export const addSubject = async (subjectName: string) => {
+  try {
+    const response = await axios.post('/admin/preferences/subject', {
+      subject: subjectName
+    });
+    if (response.status !== 201 && response.status !== 200) {
+      throw new Error('Failed to add subject');
+    }
+    toast.success('Subject added successfully');
+    return response.data;
+  } catch (error: any) {
+    if (error.response && error.response.status === 400 && error.response.data.error === 'Subject already exists') {
+      toast.error('Subject already exists');
+      throw new Error('Subject already exists');
+    } else {
+      toast.error('Failed to add subject');
+      console.error('Error adding subject:', error);
+      throw error;
+    }
+  }
+};
+
+export const updateSubjectName = async (oldSubjectName: string, newSubjectName: string) => {
+  try {
+    const response = await axios.put(`/admin/preferences/subject/${oldSubjectName}`, {
+      newName: newSubjectName
+    });
+    if (response.status !== 200) {
+      throw new Error('Failed to update subject');
+    }
+    toast.success('Subject updated successfully');
+    return response.data;
+  } catch (error) {
+    toast.error('Failed to update subject');
+    console.error('Error updating subject:', error);
+    throw error;
+  }
+};
+
+export const deleteSubject = async (subjectName: string) => {
+  try {
+    const response = await axios.delete(`/admin/preferences/subject/${subjectName}`);
+    if (response.status !== 200) {
+      throw new Error('Failed to delete subject');
+    }
+    toast.success('Subject deleted successfully');
+    return response.data;
+  } catch (error) {
+    toast.error('Failed to delete subject');
+    console.error('Error deleting subject:', error);
+    throw error;
+  }
+};
+
+export const addSubtopicToSubject = async (subjectName: string, subtopic: string) => {
+  try {
+    const response = await axios.post('/admin/preferences/subject/subtopic', {
+      subjectName,
+      subtopic
+    });
+    if (response.status !== 201 && response.status !== 200) {
+      throw new Error('Failed to add subtopic');
+    }
+    return response.data;
+  } catch (error: any) {
+    if (error.response && error.response.status === 400 && error.response.data.error === 'Subtopic already exists') {
+      console.log(`Subtopic "${subtopic}" already exists in subject "${subjectName}"`);
+      // Don't throw an error or show a toast for this case
+      return { subject: { name: subjectName, subtopics: [subtopic] }};
+    } else {
+      toast.error('Failed to add subtopic');
+      console.error('Error adding subtopic:', error);
+      throw error;
+    }
+  }
+};
+
+export const deleteSubtopicFromSubject = async (subjectName: string, subtopic: string) => {
+  try {
+    const response = await axios.delete(`/admin/preferences/subject/${subjectName}/subtopic/${subtopic}`);
+    if (response.status !== 200) {
+      throw new Error('Failed to delete subtopic');
+    }
+    return response.data;
+  } catch (error) {
+    console.error('Error deleting subtopic:', error);
+    throw error;
   }
 };
