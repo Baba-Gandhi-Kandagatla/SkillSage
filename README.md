@@ -2,7 +2,7 @@
 
 ## Introduction
 
-SkillSage is a technical interview platform for colleges. Administrators can give a cohort a common set of questions while adapting the rest of each interview to the student’s résumé and earlier answers.
+We built SkillSage so our college could give a whole batch the same core interview questions and still give each student follow-ups based on their résumé and answers. I shared responsibility for the backend with one teammate.
 
 ## Tech stack
 
@@ -28,14 +28,14 @@ SkillSage is a technical interview platform for colleges. Administrators can giv
 
 ### Team and testing
 
-Four people developed SkillSage over roughly a year. Baba Gandhi Kandagatla and one teammate co-developed the backend. Two teammates focused on the frontend.
+The four of us worked on SkillSage for about a year. Two teammates built the frontend. Alongside my backend work, I reviewed frontend code and explored speech input so students could dictate an answer.
 
-The team reports **200–300 concurrent interviews** during internal college use and a separate Playwright exercise involving approximately **1,500 simulated sessions**, with real model requests staggered across interview stages. The [browser scenarios](playwright) and [four-worker configuration](playwright.config.ts) illustrate interactions with the application. The checked-in last-run record reports a failure and contains no scale measurements.
+During internal college use, we saw **200–300 interviews running at once**. In a separate Playwright exercise, we simulated about **1,500 sessions** and staggered real model requests across interview stages. Those figures come from our team’s experience. You can inspect our [browser scenarios](playwright) and [four-worker configuration](playwright.config.ts) here. The saved run ended in a failure and has no latency or concurrency measurements.
 
 ## How it can be improved
 
-- **Make the load test reproducible.** Publish a sample roster, session ramp-up schedule, request-latency percentiles and error rates alongside the Playwright scenarios. That would let readers compare a future run with the team-reported exercise.
-- **Simplify deployment configuration.** Read the API address from one runtime setting and reserve the localhost address for development. This would let the same frontend build run against a local or hosted API.
+- **Make the load test reproducible.** I’d start by publishing a sample roster and the schedule we used to start each group of sessions. Recording latency and error rates would make repeat runs easier to compare.
+- **Simplify deployment configuration.** I’d move the API address into one runtime setting and reserve the localhost address for development. This would let the same frontend build run against a local or hosted API.
 
 ## How to run
 
@@ -70,5 +70,3 @@ Use Node.js with npm, a dedicated PostgreSQL development database and an OpenAI 
 ## Screenshots
 
 ![A sample Java interview with a question, response field and code entry.](docs/images/interview-workspace.jpg)
-
-The student workspace shows a Java interview question, a text response field and the option to add code.
